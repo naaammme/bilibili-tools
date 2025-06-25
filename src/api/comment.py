@@ -1,7 +1,7 @@
 import re
 import logging
 from typing import Optional, Tuple, Dict
-from ..types import Comment, Notify, Error, UnrecognizedURIError, DeleteCommentError
+from ..types import Comment, UnrecognizedURIError, DeleteCommentError
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ async def remove_comment(comment: Comment, rpid: int, api_service) -> int:
             )
 
         if json_res.get("code") == 0:
-            logger.info(f"获取AICU评论 {rpid}")
+            logger.info(f"删除评论成功 {rpid}")
             return rpid
         else:
             # 抛出更详细的错误信息

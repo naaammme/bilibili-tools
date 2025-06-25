@@ -1,16 +1,18 @@
 import asyncio
 import logging
 import random
+import requests
 from typing import Dict, List, Optional
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QTreeWidget, QTreeWidgetItem, QTableWidget, QTableWidgetItem,
     QCheckBox, QLineEdit, QMessageBox, QHeaderView, QAbstractItemView, QProgressBar
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QThread
+from PyQt6.QtCore import Qt, pyqtSignal, QThread, pyqtSlot
 from PyQt6.QtGui import QPixmap, QImage
 from ..api.api_service import ApiService
-from ..utils import fuzzy_search #
+from ..utils import fuzzy_search
+
 logger = logging.getLogger(__name__)
 
 
@@ -23,36 +25,18 @@ class LoadAvatarThread(QThread):
         self.url = url
 
     def run(self):
-        import aiohttp
-        import asyncio
-
-        async def fetch_avatar():
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(self.url, timeout=aiohttp.ClientTimeout(total=5)) as response:
-                        if response.status == 200:
-                            data = await response.read()
-                            img = QImage.fromData(data)
-                            return QPixmap.fromImage(img)
-            except Exception as e:
-                logger.error(f"获取头像失败: {e}")
-            return None
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
         try:
-            pixmap = loop.run_until_complete(fetch_avatar())
-            if pixmap:
+            response = requests.get(self.url, timeout=5)
+            if response.status_code == 200:
+                img = QImage.fromData(response.content)
+                pixmap = QPixmap.fromImage(img)
                 self.success.emit(pixmap)
         except Exception as e:
-            logger.error(f"加载头像失败: {e}")
-        finally:
-            loop.close()
+            logger.error(f"获取头像失败: {e}")
 
 
 class FetchDataThread(QThread):
-    """获取数据的线程"""
+    """获取数据的线程 - 使用同步请求避免事件循环冲突"""
     success = pyqtSignal(object)
     error = pyqtSignal(str)
 
@@ -63,38 +47,37 @@ class FetchDataThread(QThread):
         self.params = params or {}
 
     def run(self):
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
         try:
-            async def fetch():
-                async with self.api_service:  # 确保会话管理
-                    if self.params:
-                        # 构建带参数的URL
-                        from urllib.parse import urlencode
-                        url_with_params = f"{self.url}?{urlencode(self.params)}"
-                        return await self.api_service.get_json(url_with_params)
-                    else:
-                        return await self.api_service.get_json(self.url)
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.2651.86",
+                "Cookie": self.api_service.cookie,
+                "Referer": "https://www.bilibili.com"
+            }
 
-            result = loop.run_until_complete(fetch())
+            if self.params:
+                # 使用同步请求
+                response = requests.get(self.url, headers=headers, params=self.params, timeout=10)
+            else:
+                response = requests.get(self.url, headers=headers, timeout=10)
+
+            response.raise_for_status()
+            result = response.json()
             self.success.emit(result)
         except Exception as e:
             logger.error(f"获取错误: {e}")
             self.error.emit(str(e))
-        finally:
-            loop.close()
 
 
 class UnfollowScreen(QWidget):
     """批量取关UP主界面"""
-
+    back_to_tools = pyqtSignal()
+    window_closed = pyqtSignal()
     def __init__(self, api_service: ApiService):
         super().__init__()
         self.api_service = api_service
         self.userid = None
         self.username = ""
+        self.face_url = ""
         self.tagData = []
 
         self.allUPData = {}  # 存储所有已加载的UP主 {page: [ups...]}
@@ -114,7 +97,7 @@ class UnfollowScreen(QWidget):
         self.threads = []
 
         self.init_ui()
-        self.get_user_info()
+        self.load_user_info()  # 加载用户信息
 
     def init_ui(self):
         #初始化UI
@@ -122,6 +105,9 @@ class UnfollowScreen(QWidget):
         self.resize(800, 1000)
 
         layout = QVBoxLayout()
+
+        # 顶部工具栏
+        self.create_toolbar(layout)
 
         # 搜索栏
         search_layout = QHBoxLayout()
@@ -257,6 +243,58 @@ class UnfollowScreen(QWidget):
 
         self.setLayout(layout)
 
+    def create_toolbar(self, layout):
+        """创建顶部工具栏"""
+        toolbar_layout = QHBoxLayout()
+
+        # 返回按钮
+        back_btn = QPushButton("← 返回工具选择")
+        back_btn.clicked.connect(self.back_to_tools.emit)
+        back_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #7f8c8d;
+                color: white;
+                padding: 8px 15px;
+                border-radius: 6px;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #95a5a6;
+            }
+        """)
+        toolbar_layout.addWidget(back_btn)
+
+        # 标题
+        title_label = QLabel("批量取关")
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #ecf0f1;")
+        toolbar_layout.addWidget(title_label)
+
+        toolbar_layout.addStretch()
+        layout.addLayout(toolbar_layout)
+
+    def load_user_info(self):
+        """加载用户信息 - 优先使用缓存"""
+        # 首先尝试从缓存获取
+        uid, username, face_url = self.api_service.get_cached_user_info()
+        if uid and username:
+            self.userid = uid
+            self.username = username
+            self.face_url = face_url or ""
+
+            # 更新UI
+            self.username_label.setText(self.username)
+            logger.info(f"从缓存加载用户信息: UID={uid}, 用户名={username}")
+
+            # 如果有头像URL，加载头像
+            if self.face_url:
+                self.load_avatar(self.face_url)
+
+            # 获取分组信息
+            self.get_tags()
+        else:
+            # 缓存中没有信息，从API获取
+            self.get_user_info()
+
     def clear_search(self):
         """清空搜索"""
         self.search_input.clear()
@@ -286,14 +324,18 @@ class UnfollowScreen(QWidget):
                 user_data = data.get("data", {})
                 self.userid = user_data.get("mid")
                 self.username = user_data.get("name", "")
+                self.face_url = user_data.get("face", "")
 
                 # 用户名显示
                 self.username_label.setText(self.username)
 
+                # 缓存用户信息到ApiService
+                if self.userid and self.username:
+                    self.api_service.user_cache.set_user_info(self.userid, self.username, self.face_url)
+
                 # 加载头像
-                face_url = user_data.get("face", "")
-                if face_url:
-                    self.load_avatar(face_url)
+                if self.face_url:
+                    self.load_avatar(self.face_url)
 
                 # 获取分组
                 self.get_tags()
@@ -654,7 +696,6 @@ class UnfollowScreen(QWidget):
         # 停止正在进行的取关操作
         if self.current_unfollow_thread and self.current_unfollow_thread.isRunning():
             self.current_unfollow_thread.stop()
-            self.current_unfollow_thread.wait(1000)
 
         # 停止所有运行中的线程
         for thread in self.threads:
@@ -662,14 +703,26 @@ class UnfollowScreen(QWidget):
                 if hasattr(thread, 'stop'):
                     thread.stop()
                 thread.quit()
-                thread.wait(1000)
 
+
+
+        # 清空线程列表，打破引用
         self.threads.clear()
-        event.accept()
+        self.current_unfollow_thread = None
+
+        # 清理数据
+        self.tagData.clear()
+        self.allUPData.clear()
+        self.currentPageData.clear()
+        self.displayData.clear()
+
+        # 发送窗口关闭信号
+        self.window_closed.emit()
+        super().closeEvent(event)
 
 
 class UnfollowThread(QThread):
-    """取关操作线程"""
+    """取关操作线程 - 使用独立的事件循环"""
     progress = pyqtSignal(int, int)
     finished = pyqtSignal()
     error = pyqtSignal(str)
@@ -685,7 +738,6 @@ class UnfollowThread(QThread):
         self._is_running = False
 
     def run(self):
-        import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
@@ -702,7 +754,14 @@ class UnfollowThread(QThread):
         """执行所有取关操作"""
         total = len(self.mids)
 
-        async with self.api_service:  # 确保会话管理
+        import aiohttp
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.2651.86",
+            "Cookie": self.api_service.cookie,
+            "Referer": "https://www.bilibili.com"
+        }
+
+        async with aiohttp.ClientSession(headers=headers) as session:
             for i, mid in enumerate(self.mids):
                 # 检查是否需要停止
                 if not self._is_running:
@@ -710,17 +769,15 @@ class UnfollowThread(QThread):
                     break
 
                 try:
-                    form_data = [
-                        ('fid', mid),
-                        ('act', '2'),
-                        ('re_src', '11'),
-                        ('csrf', self.api_service.csrf),
-                    ]
+                    data = aiohttp.FormData()
+                    data.add_field('fid', mid)
+                    data.add_field('act', '2')
+                    data.add_field('re_src', '11')
+                    data.add_field('csrf', self.api_service.csrf)
 
-                    await self.api_service.post_form(
-                        "https://api.bilibili.com/x/relation/modify",
-                        form_data
-                    )
+                    async with session.post("https://api.bilibili.com/x/relation/modify", data=data) as response:
+                        response.raise_for_status()
+                        result = await response.json()
 
                     self.progress.emit(i + 1, total)
 

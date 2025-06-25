@@ -16,36 +16,57 @@ from ..api.qr_code import QRData
 logger = logging.getLogger(__name__)
 
 class QRCodeFetchThread(QThread):
-    #获取二维码线程
+    """获取二维码线程"""
     success = pyqtSignal(object)  # 二维码数据
     error = pyqtSignal(str)
 
+    def __init__(self):
+        super().__init__()
+        self.setObjectName("QRCodeFetchThread")  # 添加这行
+        self._is_running = True
+
+    def stop(self):
+        self._is_running = False
+
     def run(self):
         #运行二维码获取
+        if not self._is_running:
+            return
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
         try:
             qr_data = loop.run_until_complete(QRData.request_qrcode())
-            self.success.emit(qr_data)
+            if self._is_running:
+                self.success.emit(qr_data)
         except Exception as e:
             logger.error(f"获取二维码失败: {e}")
-            self.error.emit(str(e))
+            if self._is_running:
+                self.error.emit(str(e))
         finally:
             loop.close()
 
 
 class QRCodeCheckThread(QThread):
-    #二维码状态检查线程
+    """二维码状态检查线程"""
     state_changed = pyqtSignal(int, object, object)  # state_code, csrf, cookie
     error = pyqtSignal(str)
 
     def __init__(self, qr_data: QRData):
         super().__init__()
+        self.setObjectName("QRCodeCheckThread")  # 添加这行
         self.qr_data = qr_data
         self.api_service = ApiService()
+        self._is_running = True
 
-    def run(self):#运行状态检查”
+    def stop(self):
+        self._is_running = False
+
+    def run(self):#运行状态检查"
+        if not self._is_running:
+            return
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
@@ -55,10 +76,12 @@ class QRCodeCheckThread(QThread):
                     return await self.qr_data.get_state(self.api_service)
 
             state_code, csrf, cookie = loop.run_until_complete(check())
-            self.state_changed.emit(state_code, csrf, cookie)
+            if self._is_running:
+                self.state_changed.emit(state_code, csrf, cookie)
         except Exception as e:
             logger.error(f"检查二维码状态失败: {e}")
-            self.error.emit(str(e))
+            if self._is_running:
+                self.error.emit(str(e))
         finally:
             loop.close()
 
@@ -73,6 +96,12 @@ class QRCodeScreen(QWidget):#二维码登录页面
         self.qr_data: Optional[QRData] = None
         self.check_timer = QTimer()
         self.check_timer.timeout.connect(self.check_qr_state)
+
+        # 保存线程引用
+        self.fetch_thread = None
+        self.check_thread = None
+        self._is_closing = False
+
         self.init_ui()
         self.fetch_qr_code()
 
@@ -90,29 +119,25 @@ class QRCodeScreen(QWidget):#二维码登录页面
         self.status_label = QLabel("")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # AICU 复选框
-        self.aicu_checkbox = QCheckBox("同时从aicu.cc获取评论")
-        self.aicu_checkbox.setChecked(True)
-
-        # 切换到cookie按钮
-        self.switch_btn = QPushButton("改为输入cookie")
-        self.switch_btn.clicked.connect(self.switch_to_cookie.emit)
-
         # Layout
         layout.addWidget(self.qr_label)
         layout.addWidget(self.status_label)
-        layout.addWidget(self.aicu_checkbox)
-        layout.addWidget(self.switch_btn)
 
         self.setLayout(layout)
 
     def fetch_qr_code(self):#获取二维码
+        if self._is_closing:
+            return
+
         self.fetch_thread = QRCodeFetchThread()
         self.fetch_thread.success.connect(self.on_qr_code_fetched)
         self.fetch_thread.error.connect(self.on_fetch_error)
         self.fetch_thread.start()
 
     def on_qr_code_fetched(self, qr_data: QRData):#处理二维码取回成功
+        if self._is_closing:
+            return
+
         self.qr_data = qr_data
 
         # 生成二维码图像
@@ -144,12 +169,19 @@ class QRCodeScreen(QWidget):#二维码登录页面
 
     def on_fetch_error(self, error: str):
         #处理二维码获取错误
+        if self._is_closing:
+            return
+
         self.qr_label.setText(f"获取二维码失败:\n{error}")
         QMessageBox.critical(self, "Error", f"获取二维码失败: {error}")
 
     def check_qr_state(self):
-       #检测扫描状态
-        if not self.qr_data:
+        #检测扫描状态
+        if not self.qr_data or self._is_closing:
+            return
+
+        # 如果已有检查线程在运行，跳过
+        if self.check_thread and self.check_thread.isRunning():
             return
 
         self.check_thread = QRCodeCheckThread(self.qr_data)
@@ -159,6 +191,9 @@ class QRCodeScreen(QWidget):#二维码登录页面
 
     def on_state_changed(self, state_code: int, csrf: Optional[str], cookie: Optional[str]):
         #状态改变
+        if self._is_closing:
+            return
+
         status_messages = {
             0: "登录成功!",
             86038: "二维码过期",
@@ -171,13 +206,38 @@ class QRCodeScreen(QWidget):#二维码登录页面
 
         if state_code == 0 and csrf and cookie:
             # 登陆成功
-            self.check_timer.stop()
-            aicu_state = self.aicu_checkbox.isChecked()
+            self.stop_all_threads()
 
             #使用获取的cookie创建ApiService
             api_service = ApiService.new(cookie)
-            self.login_success.emit(api_service, aicu_state)
+            self.login_success.emit(api_service, True)
         elif state_code == 86038:
             #QR码过期，重获取
             self.check_timer.stop()
             self.fetch_qr_code()
+
+    def stop_all_threads(self):
+        """停止所有线程"""
+        self._is_closing = True
+
+        # 停止定时器
+        self.check_timer.stop()
+
+        # 停止fetch线程
+        if self.fetch_thread and self.fetch_thread.isRunning():
+            self.fetch_thread.stop()
+            self.fetch_thread.quit()
+            if not self.fetch_thread.wait(1000):
+                logger.warning("Fetch thread did not stop gracefully")
+
+        # 停止check线程
+        if self.check_thread and self.check_thread.isRunning():
+            self.check_thread.stop()
+            self.check_thread.quit()
+            if not self.check_thread.wait(1000):
+                logger.warning("Check thread did not stop gracefully")
+
+    def closeEvent(self, event):
+        """窗口关闭时清理资源"""
+        self.stop_all_threads()
+        super().closeEvent(event)

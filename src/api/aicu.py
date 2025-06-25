@@ -166,26 +166,63 @@ async def fetch_aicu_comments(
                                 notify_id=None,
                                 tp=None
                             )
+
+                            # 设置source
+                            comment.source = "aicu"
+                            comment.created_time = item.get("time", 0)
+                            comment.synced_time = int(time.time())
+
+                            # 重要：保存parent信息
+                            parent_info = item.get("parent", {})
+                            if parent_info:
+                                # 添加parent属性到Comment对象
+                                comment.parent = parent_info
+                            else:
+                                comment.parent = None
+
+                            # 添加rank信息（可能有用）
+                            comment.rank = item.get("rank", 1)
+
                             current_comment_data[rpid] = comment
                             activity_tracker.update(1)
                             if pbar:
                                 pbar.update(1)
+
+                            logger.debug(f"Created AICU comment: rpid={rpid}, oid={comment.oid}, "
+                                         f"parent={comment.parent}, rank={comment.rank}")
                     except (KeyError, ValueError, TypeError) as e:
                         logger.debug(f"Skipping a comment item due to parsing error: {e}")
                         continue
 
                 if data["data"].get("cursor", {}).get("is_end", False):
-                    logger.info("AICU comments: Reached the end.")
+                    logger.info("aicu评论:已经结束")
                     break
 
                 current_page += 1
-                await asyncio.sleep(random.uniform(2.5, 4.0))
+
+                # 基础延迟
+                base_delay = random.uniform(3, 5)
+                # 添加随机扰动
+                jitter = random.gauss(0, 2)  # 高斯分布，更自然
+                delay = max(1, base_delay + jitter)  # 确保最小1秒
+
+                # 10%概率触发长暂停（模拟用户去做其他事）
+                if random.random() < 0.1:
+                    delay += random.uniform(10, 20)
+                    logger.debug(f"触发长暂停: {delay:.1f}秒")
+
+                # 每获取10页后，强制休息
+                if current_page % 10 == 0:
+                    delay += random.uniform(5, 10)
+                    logger.info(f"已获取{current_page}页，休息{delay:.1f}秒")
+
+                await asyncio.sleep(delay)
 
             except RequestFailedError as e:
                 consecutive_errors += 1
-                logger.warning(f"Failed to fetch AICU comments page {current_page} (attempt {consecutive_errors}): {e}")
+                logger.warning(f"获取aicu评论失败 {current_page} (attempt {consecutive_errors}): {e}")
                 if consecutive_errors >= max_consecutive_errors:
-                    logger.error("Reached max consecutive errors for AICU comments. Saving progress.")
+                    logger.error("达到AICU获取评论连续错误的最大值。保存进度.")
                     recovery = AicuCommentRecovery(uid=uid, page=current_page, all_count=all_count)
                     activity_tracker.finish()
                     if pbar:
@@ -215,7 +252,7 @@ async def fetch_aicu_danmus(
 
     if recovery_point:
         logger.info(
-            f"Resuming AICU danmu fetch for UID: {recovery_point.uid}, "
+            f"再次获取aicu弹幕 for UID: {recovery_point.uid}, "
             f"from page: {recovery_point.page}, total known: {recovery_point.all_count}"
         )
         uid = recovery_point.uid
@@ -253,11 +290,11 @@ async def fetch_aicu_danmus(
                 consecutive_errors = 0
 
                 if data.get("code") != 0:
-                    logger.warning(f"AICU danmu API returned an error: {data.get('message', 'Unknown error')}")
+                    logger.warning(f"AICU弹幕API返回错误: {data.get('message', 'Unknown error')}")
                     break
 
                 if "data" not in data:
-                    logger.warning(f"AICU danmu response format error: {data}")
+                    logger.warning(f"AICU弹幕响应格式错误: {data}")
                     break
 
                 if pbar is None:
@@ -276,7 +313,7 @@ async def fetch_aicu_danmus(
                 for item in danmus:
                     try:
                         dmid = int(item["id"])
-                        # 在弹木API中，"oid"是视频的CID.
+                        # 在弹幕API中，"oid"是视频的CID
                         cid = item.get("oid")
                         if cid and dmid not in current_danmu_data:
                             danmu = Danmu(
@@ -285,6 +322,15 @@ async def fetch_aicu_danmus(
                                 is_selected=True,
                                 notify_id=None
                             )
+                            danmu.source = "aicu"  # 明确设置来源为aicu
+
+                            # 为AICU弹幕设置创建时间
+                            danmu.created_time = item.get("ctime", 0)
+                            danmu.synced_time = int(time.time())
+
+                            # 添加调试日志
+                            logger.debug(f"AICU弹幕 dmid={dmid}, cid={cid}, source={danmu.source}")
+
                             current_danmu_data[dmid] = danmu
                             activity_tracker.update(1)
                             if pbar:
@@ -298,13 +344,30 @@ async def fetch_aicu_danmus(
                     break
 
                 current_page += 1
-                await asyncio.sleep(random.uniform(2.5, 4.0))
+
+                # 基础延迟
+                base_delay = random.uniform(3, 5)
+                # 添加随机扰动
+                jitter = random.gauss(0, 2)  # 高斯分布，更自然
+                delay = max(1, base_delay + jitter)  # 确保最小1秒
+
+                # 10%概率触发长暂停（模拟用户去做其他事）
+                if random.random() < 0.1:
+                    delay += random.uniform(10, 20)
+                    logger.debug(f"触发长暂停: {delay:.1f}秒")
+
+                # 每获取10页后，强制休息
+                if current_page % 10 == 0:
+                    delay += random.uniform(5, 10)
+                    logger.info(f"已获取{current_page}页，休息{delay:.1f}秒")
+
+                await asyncio.sleep(delay)
 
             except RequestFailedError as e:
                 consecutive_errors += 1
-                logger.warning(f"Failed to fetch AICU danmus page {current_page} (attempt {consecutive_errors}): {e}")
+                logger.warning(f"获取aicu弹幕失败,页数: {current_page} (attempt {consecutive_errors}): {e}")
                 if consecutive_errors >= max_consecutive_errors:
-                    logger.error("Reached max consecutive errors for AICU danmus. Saving progress.")
+                    logger.error("已达到AICU任务连续错误最大值。保存进度.")
                     recovery = AicuDanmuRecovery(uid=uid, page=current_page, all_count=all_count)
                     activity_tracker.finish()
                     if pbar:

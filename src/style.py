@@ -17,7 +17,8 @@ def get_stylesheet():
 
     # 获取对勾图标的正确路径
     check_icon_path = get_resource_path("assets/check.svg").replace("\\", "/")
-
+    up_on_path = get_resource_path("assets/up.svg").replace("\\", "/")
+    down_on_path = get_resource_path("assets/down.svg").replace("\\", "/")
     return f"""
 /* ---- 全局样式 ---- */
 QWidget {{
@@ -35,6 +36,8 @@ QMainWindow {{
 QLabel {{
     color: #ecf0f1;
     padding: 5px;
+    background-color: transparent; /* 确保透明背景 */
+    border: none; /* 移除边框 */
 }}
 
 /* ---- 按钮 ---- */
@@ -64,7 +67,6 @@ QPushButton#deleteButton:pressed {{
     background-color: #cb4335;
 }}
 
-
 /* ---- 输入框 ---- */
 QLineEdit, QSpinBox {{
     background-color: #34495e; /* 较深的输入框背景 */
@@ -76,12 +78,25 @@ QLineEdit, QSpinBox {{
 QLineEdit:focus, QSpinBox:focus {{
     border: 1px solid #3498db; /* 聚焦时边框变蓝 */
 }}
-QSpinBox::up-button, QSpinBox::down-button {{
+
+/* 向上按钮的图标 */
+QSpinBox::up-button {{
     subcontrol-origin: border;
     width: 18px;
     border-radius: 4px;
     background-color: #566573;
+    image: url({up_on_path});
 }}
+
+/* 向下按钮的图标 */
+QSpinBox::down-button {{
+    subcontrol-origin: border;
+    width: 18px;
+    border-radius: 4px;
+    background-color: #566573;
+    image: url({down_on_path});
+}}
+
 QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
     background-color: #627282;
 }}
@@ -93,6 +108,7 @@ QSpinBox::up-arrow, QSpinBox::down-arrow {{
 /* ---- 复选框 ---- */
 QCheckBox {{
     spacing: 10px; /* 文字和框的间距 */
+    background-color: transparent; /* 确保透明背景 */
 }}
 QCheckBox::indicator {{
     width: 20px;
@@ -124,6 +140,7 @@ QProgressBar::chunk {{
 QScrollArea {{
     border: 1px solid #444;
     border-radius: 8px;
+    background-color: transparent; /* 确保透明背景 */
 }}
 QScrollBar:vertical {{
     border: none;
@@ -171,7 +188,59 @@ QMessageBox {{
 QMessageBox QLabel {{
     color: #ecf0f1;
     font-size: 15px;
+    background-color: transparent; /* 确保透明背景 */
+    border: none; /* 移除边框 */
 }}
+
+/* ---- 工具选择页面专用样式 ---- */
+ToolSelectionScreen {{
+    background-color: #2c3e50;
+}}
+
+/* ---- 工具卡片样式 ---- */
+QFrame#toolCard {{
+    background-color: #34495e;
+    border: 2px solid #566573;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 10px;
+}}
+
+QFrame#toolCard:hover {{
+    border-color: #3498db;
+    background-color: #3c4a5a;
+}}
+
+QFrame#toolCard QLabel {{
+    background-color: transparent;
+    border: none;
+    color: #ecf0f1;
+}}
+
+/* ---- 堆叠窗口组件 ---- */
+QStackedWidget {{
+    background-color: transparent;
+}}
+
+QStackedWidget QWidget {{
+    background-color: transparent;
+}}
+
+/* ---- 文本编辑框 ---- */
+QTextEdit {{
+    background-color: #34495e;
+    border: 1px solid #566573;
+    border-radius: 8px;
+    color: #ecf0f1;
+    selection-background-color: #3498db;
+}}
+
+/* ---- 确保没有意外的背景色 ---- */
+QVBoxLayout, QHBoxLayout, QGridLayout {{
+    background-color: transparent;
+}}
+
+
 
 """
 

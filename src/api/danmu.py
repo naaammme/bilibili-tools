@@ -1,7 +1,7 @@
 import re
 import logging
 from typing import Optional, Dict
-from ..types import Danmu, Notify, DeleteDanmuError
+from ..types import Danmu, DeleteDanmuError
 
 logger = logging.getLogger(__name__)
 

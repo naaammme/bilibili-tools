@@ -1,7 +1,7 @@
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Optional, Dict, List, Tuple, Any
-import asyncio
+from typing import Optional, Dict, Tuple
+
 
 class Screen(Enum):
     WAIT_SCAN_QRCODE = "wait_scan_qrcode"
@@ -61,6 +61,11 @@ class Comment:
     is_selected: bool = True
     notify_id: Optional[int] = None
     tp: Optional[int] = None
+    created_time: int = 0
+    synced_time: int = 0
+    source: str = "bilibili"  # 添加默认值
+    parent: Optional[Dict] = None  # 添加parent属性
+    rank: int = 1  # 添加rank属性
 
     @classmethod
     def new_with_notify(cls, oid: int, type: int, content: str, notify_id: int, tp: int):
@@ -72,6 +77,10 @@ class Danmu:
     cid: int
     is_selected: bool = True
     notify_id: Optional[int] = None
+    created_time: int = 0  # 原始创建时间戳
+    synced_time: int = 0   # 同步时间戳
+    source: str = "bilibili"  # 添加数据来源字段
+    video_url: Optional[str] = None  # 添加视频链接字段
 
     @classmethod
     def new_with_notify(cls, content: str, cid: int, notify_id: int):
@@ -83,6 +92,8 @@ class Notify:
     tp: int
     is_selected: bool = True
     system_notify_api: Optional[int] = None
+    created_time: int = 0  # 原始创建时间戳
+    synced_time: int = 0   # 同步时间戳
 
     @classmethod
     def new_system_notify(cls, content: str, tp: int, api_type: int):

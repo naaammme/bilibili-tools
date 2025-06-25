@@ -1,27 +1,66 @@
-# Bilibili 评论清理工具 
+# Bilibili 评论工具集
+[![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://python.org)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![GitHub release](https://img.shields.io/github/release/yourusername/bilibili-comment-cleaning.svg)](https://github.com/yourusername/bilibili-comment-cleaning/releases)
 
-一个Bilibili评论、弹幕、通知批量清理工具，同时提供批量取关功能。
+一个Bilibili小工具集合,提供评论清理、批量取关、数据统计、私信管理等功能。
 
-## 主要功能
+## ✨ 主要功能
+ **评论清理工具**
 
-- 扫码或Cookie登录B站账号
-- 批量获取收到的点赞、回复、@和系统通知
-- 批量获取自己发表的评论和弹幕 
-- 支持关键词搜索，批量删除评论、通知
-- 提供独立的批量取关工具
+- 批量删除评论、弹幕和通知
+- 智能搜索和过滤功能
+- 双击查看评论详情对话
 
-## 使用说明
+ **批量取关工具**
+-  一键批量取消关注
+- 搜索和过滤功能
 
-1.  从 [Releases 页面](link/to/releases) 下载可执行文件
-2.  运行程序，选择扫码或Cookie登录
-3.  等待数据获取完成
-4.  勾选需要删除的项目，点击删除
+ **数据统计中心**
+- 评论、弹幕、私信、通知统计
+- 私信互动排行榜
 
-## 致谢
+ **私信管理工具**
+- 批量删除私信会话 
+- 内容和UID搜索 
+- 批量标记已读
+- 双击查看完整对话详情
 
-本项目在 [Initsnow/bilibili-comment-cleaning](https://github.com/Initsnow/bilibili-comment-cleaning) 的基础上进行了深度的二次开发和功能升级。
+ **账号管理**
+- 多账号支持，一键切换
+-  二维码扫码 / Cookie 登录 
+- 自动保存登录状态
+-  本地安全存储
 
-我在原项目优秀的核心逻辑上,对ui和部分功能进行了完善
+## 📋使用说明
+**方式一**:
+- 从 [Releases 页面](link/to/releases) 下载可执行文件
+- 运行程序，选择扫码或Cookie登录
 
-非常感谢原作者 **Initsnow** 的开源分享，为本项目奠定了坚实的基础。
-    
+**方式二**:
+- 克隆仓库:
+
+  git clone https://github.com/yourusername/bilibili-comment-cleaning.git
+
+  cd bilibili-comment-cleaning
+
+- 创建虚拟环境:
+bashpython -m venv venv
+- 安装依赖:
+pip install -r requirements.txt
+- 运行程序:
+python main.py
+
+
+## ⚠️ 潜在风险提示：
+- 短时间大量请求api可能触发风控，导致部分操作失败,请使用网络代理工具
+- 尽管概率较低，但不能完全排除因滥用导致账号被封禁或触发其他限制的可能性
+- 为了控制风险,如果你有上千条内容需要清理，请不要一次性完成并保持默认延迟
+
+## 🙏  致谢
+
+本项目部分功能的实现思路参考了[Initsnow/bilibili-comment-cleaning](https://github.com/Initsnow/bilibili-comment-cleaning) 和[sw1128/Bilinili_UnFolow](https://github.com/sw1128/Bilibili_UnFollow.git)
+项目的代码。
+
+非常感谢作者 **Initsnow**和**sw1128** 的开源分享，为本项目奠定了坚实的基础。
+

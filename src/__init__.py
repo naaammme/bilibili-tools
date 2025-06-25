@@ -1,4 +1,4 @@
-#Bilibili评论清理工具
+#Bilibili工具库
 
-__version__ = "0.9.9"
+__version__ = "1.4.9"
 __author__ = "hellow"

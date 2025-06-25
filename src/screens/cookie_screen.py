@@ -37,17 +37,17 @@ class CookieScreen(QWidget):
         input_layout.addWidget(self.submit_btn)
 
         # AICU 复选框
-        self.aicu_checkbox = QCheckBox("同时从aicu.cc获取评论")
-        self.aicu_checkbox.setChecked(True)
+      #  self.aicu_checkbox = QCheckBox("同时从aicu.cc获取评论")
+     #   self.aicu_checkbox.setChecked(True)
 
         # 切换到二维码按钮
-        self.switch_btn = QPushButton("改为扫描二维码")
-        self.switch_btn.clicked.connect(self.switch_to_qrcode.emit)
+      #  self.switch_btn = QPushButton("改为扫描二维码")
+       # self.switch_btn.clicked.connect(self.switch_to_qrcode.emit)
 
         # 加入layout
         layout.addLayout(input_layout)
-        layout.addWidget(self.aicu_checkbox)
-        layout.addWidget(self.switch_btn)
+      #  layout.addWidget(self.aicu_checkbox)
+       # layout.addWidget(self.switch_btn)
 
         # Help text
         help_text = QLabel(
@@ -70,8 +70,8 @@ class CookieScreen(QWidget):
 
         try:
             api_service = ApiService.new(cookie)
-            aicu_state = self.aicu_checkbox.isChecked()
-            self.login_success.emit(api_service, aicu_state)
+          #  aicu_state = self.aicu_checkbox.isChecked()
+            self.login_success.emit(api_service, True)
         except Exception as e:
             logger.error(f"日志含义创建API服务失败: {e}")
             QMessageBox.critical(

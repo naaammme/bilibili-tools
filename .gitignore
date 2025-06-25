@@ -1,23 +1,53 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
 
-# Virtualenv
-/venv/
-/Lib/
-/Scripts/
-/pyvenv.cfg
+# PyQt
+*.ui
 
-# IDE files
+# IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
-# Build artifacts
-/dist/
-/build/
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 应用特定
+*.db
+*.pkl
+message_cache.pkl
+comments_data.db
+build/
+dist/
 *.spec
-
-# Logs
-*.log
+cache/
+.bilibili_tools/

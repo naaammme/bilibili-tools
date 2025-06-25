@@ -1,9 +1,12 @@
 import asyncio
+import datetime
 import random
 import time
 from tqdm.asyncio import tqdm_asyncio as tqdm
 import logging
-from typing import Dict, Optional, Tuple, List, Callable, Union
+from typing import Dict, Optional, Tuple, List, Callable, Union, Any
+
+from ..database.incremental import IncrementalFetcher
 from ..types import (
     Notify, Comment, Danmu, FetchProgressState, ActivityInfo,
     LikedRecovery, ReplyedRecovery, AtedRecovery, SystemNotifyRecovery,
@@ -162,6 +165,7 @@ async def fetch_liked(
     pbar = tqdm(desc="获取点赞", unit="items")
 
     while True:
+
         try:
             if cursor_id is None and cursor_time is None:
                 url = "https://api.bilibili.com/x/msgfeed/like?platform=web&build=0&mobi_app=web"
@@ -201,26 +205,56 @@ async def fetch_liked(
 
                     # 尝试创建关联的评论或弹幕对象
                     if item_data.get("type") == "reply":
-                        rpid = item_data.get("target_id") or item_data.get("item_id")
+                        rpid = item_data.get("item_id")
                         if rpid:
                             try:
-                                # 注意：这里的解析仍然可能因为信息不足而失败
+                                rpid = int(rpid)  # 确保是整数
                                 oid, type_ = parse_oid(item_data)
                                 content = item_data.get("title", "")
-                                current_comment_data[rpid] = Comment.new_with_notify(
+                                comment = Comment.new_with_notify(
                                     oid=oid, type=type_, content=content, notify_id=notify_id, tp=0
                                 )
+                                # 重要：设置source属性
+                                comment.source = "bilibili"
+                                comment.created_time = item.get("like_time", 0)
+                                # 保存视频URI
+                                comment.video_uri = item_data.get("uri", "")
+                                # 保存点赞数
+                                comment.like_count = item.get("counts", 0)  # 点赞通知的counts字段
+                                logger.debug(
+                                    f"存储点赞评论: rpid={rpid}, uri={comment.video_uri}, likes={comment.like_count}")
+                                current_comment_data[rpid] = comment
+                                comment.synced_time = int(time.time())
                             except Exception as e:
                                 logger.warning(f"无法为点赞通知 (ID: {notify_id}) 创建关联评论 (rpid={rpid}): {e}。这可能导致关联删除失败。")
+                                logger.warning(f"解析liked评论失败: {e}")
 
                     elif item_data.get("type") == "danmu":
-                        native_uri = item_data.get("native_uri", "")
-                        cid = extract_cid(native_uri) if native_uri else None
                         dmid = item_data.get("item_id")
-                        if cid and dmid:
-                            current_danmu_data[dmid] = Danmu.new_with_notify(
+                        if dmid:
+                            # 从native_uri中提取cid（用于内部逻辑）
+                            native_uri = item_data.get("native_uri", "")
+                            cid = extract_cid(native_uri) if native_uri else None
+                            # 如果没有cid，尝试其他方式获取
+                            if not cid:
+                                # 可以尝试从其他字段获取，或者设置一个默认值
+                                cid = 0  # 临时设置，主要依赖video_url
+
+                            danmu = Danmu.new_with_notify(
                                 item_data.get("title", ""), cid, notify_id
                             )
+                            danmu.source = "bilibili"  # 明确设置来源
+                            danmu.video_url = item_data.get("uri", "")  # 保存完整的视频链接
+
+                            # 设置正确的时间戳
+                            danmu.created_time = item.get("like_time", 0)
+                            danmu.synced_time = int(time.time())
+
+                            # 添加调试日志
+                            logger.debug(
+                                f"B站弹幕 dmid={dmid}, cid={cid}, source={danmu.source}, video_url={danmu.video_url}")
+
+                            current_danmu_data[dmid] = danmu
 
                     # 更新活动
                     activity_tracker.update(1)
@@ -264,6 +298,7 @@ async def fetch_replyed(
     activity_tracker = SimpleActivityTracker("replyed", "正在获取回复数据", activity_callback or (lambda x: None))
     pbar = tqdm(desc="获取回复", unit="items")
     while True:
+
         try:
             if cursor_id is None and cursor_time is None:
                 url = "https://api.bilibili.com/x/msgfeed/reply?platform=web&build=0&mobi_app=web"
@@ -271,7 +306,7 @@ async def fetch_replyed(
                 url = f"https://api.bilibili.com/x/msgfeed/reply?platform=web&build=0&mobi_app=web&id={cursor_id}&reply_time={cursor_time}"
             response_data = await api_service.fetch_data(url)
             if not isinstance(response_data, dict) or response_data.get("code") != 0:
-                logger.error(f"API error or invalid format for replies: {response_data}");
+                logger.error(f"API error or invalid format for replies: {response_data}")
                 break
 
             data = response_data.get("data", {})
@@ -279,7 +314,7 @@ async def fetch_replyed(
             cursor = data.get("cursor")  # The cursor for reply is directly under data
 
             if not items:
-                logger.info("回复的通知已完全处理 (no items).");
+                logger.info("回复的通知已完全处理 (no items).")
                 break
 
             for item in items:
@@ -290,38 +325,52 @@ async def fetch_replyed(
                     current_notify_data[notify_id] = Notify(content=f"{item_data.get('title', 'Unknown')} (reply)",
                                                             tp=1)
                     if item_data.get("type") == "reply":
-                        rpid = item_data.get("target_id")
+                        rpid = item_data.get("target_id")  # 回复通知用target_id
                         if rpid:
                             try:
+                                rpid = int(rpid)  # 是整数
+                                logger.debug(f"处理回复评论: rpid={rpid}")
                                 oid, type_ = parse_oid(item_data)
                                 content = item_data.get("target_reply_content") or item_data.get("title", "")
-                                current_comment_data[rpid] = Comment.new_with_notify(oid, type_, content, notify_id, 1)
+                                comment = Comment.new_with_notify(
+                                    oid=oid, type=type_, content=content, notify_id=notify_id, tp=1
+                                )
+                                comment.source = "bilibili"
+                                comment.created_time = item.get("reply_time", 0)
+                                # 保存视频URI
+                                comment.video_uri = item_data.get("uri", "")
+                                # 保存点赞数
+                                comment.like_count = item.get("counts", 0)  # 回复通知的counts字段
+                                current_comment_data[rpid] = comment
+                                logger.debug(
+                                    f"存储回复评论: rpid={rpid}, uri={comment.video_uri}, likes={comment.like_count}")
                             except Exception as e:
-                                logger.debug(f"Failed to parse replied comment: {e}")
-                    activity_tracker.update(1);
+                                logger.debug(f"解析回复评论失败: {e}")
+
+                    activity_tracker.update(1)
                     pbar.update(1)
                 except Exception as e:
-                    logger.debug(f"Error processing a replied item: {e}");
+                    logger.debug(f"Error processing a replied item: {e}")
                     continue
 
             if cursor and cursor.get("is_end"):
-                logger.info("Replied notifications processed completely.");
+                logger.info("Replied notifications processed completely.")
                 break
 
             if cursor and cursor.get("id") and cursor.get("time"):
                 cursor_id, cursor_time = cursor.get("id"), cursor.get("time")
             else:
-                logger.info("回复的通知已完全处理 (no more cursor).");
+                logger.info("回复的通知已完全处理 (no more cursor).")
                 break
 
         except Exception as e:
             logger.warning(f"Error fetching replied page: {e}")
             recovery = ReplyedRecovery(cursor_id, cursor_time) if cursor_id and cursor_time else recovery_point
-            activity_tracker.finish();
+            activity_tracker.finish()
             pbar.close()
             return current_notify_data, current_comment_data, recovery
         await asyncio.sleep(sleep_duration())
-    activity_tracker.finish();
+    activity_tracker.finish()
     pbar.close()
     return current_notify_data, current_comment_data, None
 
@@ -338,6 +387,7 @@ async def fetch_ated(
     activity_tracker = SimpleActivityTracker("ated", "正在获取@数据", activity_callback or (lambda x: None))
     pbar = tqdm(desc="获取@数据中", unit="items")
     while True:
+
         try:
             if cursor_id is None and cursor_time is None:
                 url = "https://api.bilibili.com/x/msgfeed/at?build=0&mobi_app=web"
@@ -373,33 +423,118 @@ async def fetch_system_notify_adapted(
     api_type_to_use = recovery_point.api_type if recovery_point else 0
     activity_tracker = SimpleActivityTracker("system", "正在获取系统通知", activity_callback or (lambda x: None))
     pbar = tqdm(desc="获取系统通知中", unit="items")
+
+    # 标记是否是第一次请求
+    is_first_request = current_cursor is None
+
     while True:
         try:
             if current_cursor is None:
-                url = (f"https://message.bilibili.com/x/sys-msg/query_user_notify?csrf={api_service.csrf}&page_size=20&build=0&mobi_app=web" if api_type_to_use == 0 else
-                       f"https://message.bilibili.com/x/sys-msg/query_unified_notify?csrf={api_service.csrf}&page_size=10&build=0&mobi_app=web")
+                # 第一次请求，尝试第一个API
+                url = (
+                    f"https://message.bilibili.com/x/sys-msg/query_user_notify?csrf={api_service.csrf}&page_size=20&build=0&mobi_app=web" if api_type_to_use == 0 else
+                    f"https://message.bilibili.com/x/sys-msg/query_unified_notify?csrf={api_service.csrf}&page_size=10&build=0&mobi_app=web")
             else:
+                # 分页请求
                 url = f"https://message.bilibili.com/x/sys-msg/query_notify_list?csrf={api_service.csrf}&data_type=1&cursor={current_cursor}&build=0&mobi_app=web"
+
             json_value = await api_service.get_json(url)
-            data_obj = json_value.get("data", {})
-            items_on_this_page = data_obj.get("system_notify_list", []) if current_cursor is None else data_obj
+
+            if json_value.get("code") != 0:
+                logger.warning(f"系统通知API返回错误: {json_value}")
+                break
+
+            # 处理不同的数据结构
+            if current_cursor is None:
+                # 第一次请求，数据在 data.system_notify_list
+                data_obj = json_value.get("data", {})
+                items_on_this_page = data_obj.get("system_notify_list", [])
+
+                # 如果第一个API返回空，尝试第二个API
+                if not items_on_this_page and is_first_request and api_type_to_use == 0:
+                    logger.info("第一个API返回空，尝试备用API...")
+                    api_type_to_use = 1
+                    await asyncio.sleep(random.uniform(0, 2))
+                    url = f"https://message.bilibili.com/x/sys-msg/query_unified_notify?csrf={api_service.csrf}&page_size=10&build=0&mobi_app=web"
+                    json_value = await api_service.get_json(url)
+
+                    if json_value.get("code") == 0:
+                        data_obj = json_value.get("data", {})
+                        items_on_this_page = data_obj.get("system_notify_list", [])
+            else:
+                # 分页请求，数据直接在 data（是个数组）
+                items_on_this_page = json_value.get("data", [])
+
             if not items_on_this_page:
-                logger.info(f"系统通知完全处理。总计: {len(current_data)}"); break
+                logger.info(f"系统通知完全处理。总计: {len(current_data)}")
+                break
+
+            # 处理当前页的数据
             new_page_cursor = None
             for item in items_on_this_page:
-                current_data[item["id"]] = Notify.new_system_notify(f"{item['title']}\n{item['content']}", item["type"], api_type_to_use)
-                new_page_cursor = item["cursor"]
-                activity_tracker.update(1); pbar.update(1)
+                # 创建通知对象
+                notify_id = item.get("id")
+                if notify_id:
+                    current_data[notify_id] = Notify.new_system_notify(
+                        f"{item.get('title', '')}\n{item.get('content', '')}",
+                        item.get("type", 0),
+                        api_type_to_use
+                    )
+
+                    # 设置时间戳（如果有）
+                    time_at = item.get("time_at")
+                    if time_at:
+                        try:
+                            from datetime import datetime
+                            dt = datetime.strptime(time_at, "%Y-%m-%d %H:%M:%S")
+                            current_data[notify_id].created_time = int(dt.timestamp())
+                        except:
+                            current_data[notify_id].created_time = int(time.time())
+
+                    activity_tracker.update(1)
+                    pbar.update(1)
+
+            # 从最后一条记录获取cursor用于下一页
+            if items_on_this_page:
+                last_item = items_on_this_page[-1]
+                new_page_cursor = last_item.get("cursor")
+
+            # 更新cursor
             current_cursor = new_page_cursor
+
+            # 如果没有新的cursor，说明已经到最后一页
+            if current_cursor is None:
+                logger.info("系统通知获取完毕（没有更多分页）")
+                break
+
+            # 标记不再是第一次请求
+            is_first_request = False
+
+            base_delay = random.uniform(0, 2)  # 基础延迟4-6秒
+
+            # 根据已获取的数量增加延迟
+            if len(current_data) > 100:
+                base_delay += random.uniform(2, 3)  # 获取超过100条后额外延迟
+            elif len(current_data) > 200:
+                base_delay += random.uniform(3, 5)  # 获取超过200条后更长延迟
+
+            # 添加随机扰动，模拟人类行为
+            jitter = random.gauss(0, 1)  # 高斯分布
+            delay = max(0, base_delay + jitter)  # 确保最小3秒
+
+
         except Exception as e:
             logger.warning(f"获取b站系统通知错误: {e}")
             recovery = SystemNotifyRecovery(current_cursor, api_type_to_use) if current_cursor else None
-            activity_tracker.finish(); pbar.close()
+            activity_tracker.finish()
+            pbar.close()
             return current_data, recovery
-        await asyncio.sleep(sleep_duration())
-    activity_tracker.finish(); pbar.close()
-    return current_data, None
 
+        await asyncio.sleep(sleep_duration())
+
+    activity_tracker.finish()
+    pbar.close()
+    return current_data, None
 
 
 async def fetch(
@@ -450,3 +585,454 @@ async def fetch(
     return (combined_notify, combined_comment, combined_danmu), None
 
 __all__ = ['fetch', 'remove_notify', 'fetch_liked', 'fetch_replyed', 'fetch_ated', 'fetch_system_notify_adapted']
+
+
+async def fetch_incremental_data(
+        api_service,
+        uid: int,
+        db_manager,
+        activity_callback: Callable[[Union[str, ActivityInfo]], None] = None
+) -> Tuple[Dict[int, Notify], Dict[int, Comment], Dict[int, Danmu]]:
+    """增量获取所有类型的数据"""
+    from ..database.incremental import IncrementalFetcher
+
+    fetcher = IncrementalFetcher(db_manager)
+
+    all_notifies = {}
+    all_comments = {}
+    all_danmus = {}
+
+    # 获取各类型的增量数据
+    data_types = ["liked", "replied", "ated", "system_notify"]
+
+    for data_type in data_types:
+        try:
+            if activity_callback:
+                activity_callback(f"获取新的{data_type}数据...")
+
+            # 获取增量数据
+            notifies, comments, danmus = await fetch_incremental_by_type(
+                api_service, uid, data_type, fetcher, activity_callback
+            )
+
+            # 合并数据
+            all_notifies.update(notifies)
+            all_comments.update(comments)
+            all_danmus.update(danmus)
+
+        except Exception as e:
+            logger.error(f"获取{data_type}增量数据失败: {e}")
+            continue
+
+    # 获取AICU增量数据
+    if activity_callback:
+        activity_callback("获取AICU增量数据...")
+
+    try:
+        aicu_comments = await fetch_aicu_comments_incremental(
+            api_service, uid, fetcher, activity_callback
+        )
+        all_comments.update(aicu_comments)
+
+        aicu_danmus = await fetch_aicu_danmus_incremental(
+            api_service, uid, fetcher, activity_callback
+        )
+        all_danmus.update(aicu_danmus)
+
+    except Exception as e:
+        logger.error(f"获取AICU增量数据失败: {e}")
+
+    return all_notifies, all_comments, all_danmus
+
+
+async def fetch_incremental_by_type(
+        api_service, uid: int, data_type: str, fetcher: IncrementalFetcher,
+        activity_callback: Callable[[Union[str, ActivityInfo]], None] = None
+) -> Tuple[Dict[int, Notify], Dict[int, Comment], Dict[int, Danmu]]:
+    """按类型获取增量数据"""
+
+    # 获取上次同步的游标和最新时间戳
+    last_cursor = fetcher.get_last_sync_cursor(uid, data_type)
+    last_timestamp = fetcher.get_latest_timestamp(uid, data_type)
+
+    notifies = {}
+    comments = {}
+    danmus = {}
+
+    # 构建API URL
+    base_urls = {
+        "liked": "https://api.bilibili.com/x/msgfeed/like?platform=web&build=0&mobi_app=web",
+        "replied": "https://api.bilibili.com/x/msgfeed/reply?platform=web&build=0&mobi_app=web",
+        "ated": "https://api.bilibili.com/x/msgfeed/at?build=0&mobi_app=web",
+        "system_notify": f"https://message.bilibili.com/x/sys-msg/query_user_notify?csrf={api_service.csrf}&page_size=20&build=0&mobi_app=web"
+    }
+
+    if data_type not in base_urls:
+        return notifies, comments, danmus
+
+    base_url = base_urls[data_type]
+    current_cursor_id = last_cursor.cursor_id if last_cursor else None
+    current_cursor_time = last_cursor.cursor_time if last_cursor else None
+
+    new_items_count = 0
+    max_pages = 10  # 限制最大页数，避免无限循环
+    page_count = 0
+
+    while page_count < max_pages:
+        try:
+            # 构建URL
+            if current_cursor_id and current_cursor_time and data_type in ["liked", "replied", "ated"]:
+                if data_type == "liked":
+                    url = f"{base_url}&id={current_cursor_id}&like_time={current_cursor_time}"
+                elif data_type == "replied":
+                    url = f"{base_url}&id={current_cursor_id}&reply_time={current_cursor_time}"
+                elif data_type == "ated":
+                    url = f"{base_url}&id={current_cursor_id}&at_time={current_cursor_time}"
+            elif current_cursor_id and data_type == "system_notify":
+                url = f"https://message.bilibili.com/x/sys-msg/query_notify_list?csrf={api_service.csrf}&data_type=1&cursor={current_cursor_id}&build=0&mobi_app=web"
+            else:
+                url = base_url
+
+            # 获取数据
+            response_data = await api_service.fetch_data(url)
+
+            if response_data.get("code") != 0:
+                logger.warning(f"{data_type}增量获取API错误: {response_data}")
+                break
+
+            # 解析数据
+            data = response_data.get("data", {})
+            if data_type == "system_notify":
+                items = data.get("system_notify_list", []) if current_cursor_id is None else data
+            else:
+                items = data.get("items", []) if data_type != "liked" else data.get("total", {}).get("items", [])
+
+            if not items:
+                logger.info(f"{data_type}增量获取完成：没有更多数据")
+                break
+
+            # 过滤新数据
+            new_items = fetcher.filter_new_items(items, data_type, last_timestamp)
+
+            if not new_items:
+                logger.info(f"{data_type}增量获取完成：没有新数据")
+                break
+
+            # 处理新数据
+            for item in new_items:
+                try:
+                    if data_type in ["liked", "replied", "ated"]:
+                        # 处理点赞、回复、@通知
+                        await process_notify_item(item, data_type, notifies, comments, danmus)
+                    elif data_type == "system_notify":
+                        # 处理系统通知
+                        await process_system_notify_item(item, notifies)
+
+                    new_items_count += 1
+
+                except Exception as e:
+                    logger.debug(f"处理{data_type}项目失败: {e}")
+                    continue
+
+            # 更新游标
+            cursor_info = data.get("cursor", {})
+            if data_type == "liked":
+                cursor_info = data.get("total", {}).get("cursor", {})
+
+            if cursor_info:
+                current_cursor_id = cursor_info.get("id")
+                current_cursor_time = cursor_info.get("time")
+
+                if cursor_info.get("is_end"):
+                    logger.info(f"{data_type}增量获取完成：到达末尾")
+                    break
+            else:
+                break
+
+            page_count += 1
+
+            # 更新进度
+            if activity_callback:
+                activity_info = ActivityInfo(
+                    message=f"获取新的{data_type}数据",
+                    current_count=new_items_count,
+                    speed=0.0,
+                    elapsed_time=0.0,
+                    category=f"{data_type}_incremental"
+                )
+                activity_callback(activity_info)
+
+            await asyncio.sleep(1)  # 限制请求频率
+
+        except Exception as e:
+            logger.error(f"获取{data_type}增量数据页面失败: {e}")
+            break
+
+    # 保存最新的游标
+    if current_cursor_id:
+        fetcher.save_sync_cursor(uid, data_type, current_cursor_id, current_cursor_time)
+
+    logger.info(f"{data_type}增量获取完成，新数据: {new_items_count}")
+    return notifies, comments, danmus
+
+
+async def process_notify_item(item: Dict[str, Any], data_type: str,
+                              notifies: Dict[int, Notify], comments: Dict[int, Comment],
+                              danmus: Dict[int, Danmu]):
+    """处理通知类数据项"""
+    from .comment import parse_oid
+    from .danmu import extract_cid
+
+    try:
+        notify_id = item["id"]
+        item_data = item.get("item", {})
+
+        # 创建通知
+        tp_mapping = {"liked": 0, "replied": 1, "ated": 2}
+        tp = tp_mapping.get(data_type, 0)
+
+        notify_content = f"{item_data.get('title', 'Unknown')} ({data_type})"
+        notifies[notify_id] = Notify(
+            content=notify_content,
+            tp=tp,
+            created_time=item.get(f"{data_type.rstrip('d')}_time", 0)
+        )
+
+        # 处理关联的评论或弹幕
+        if item_data.get("type") == "reply":
+            rpid = item_data.get("target_id") or item_data.get("item_id")
+            if rpid:
+                try:
+                    oid, type_ = parse_oid(item_data)
+                    content = item_data.get("title", "")
+                    comments[rpid] = Comment.new_with_notify(
+                        oid=oid, type=type_, content=content,
+                        notify_id=notify_id, tp=tp
+                    )
+                    comments[rpid].created_time = item.get(f"{data_type.rstrip('d')}_time", 0)
+                except Exception as e:
+                    logger.debug(f"解析评论失败: {e}")
+
+        elif item_data.get("type") == "danmu":
+            native_uri = item_data.get("native_uri", "")
+            cid = extract_cid(native_uri) if native_uri else None
+            dmid = item_data.get("item_id")
+            if cid and dmid:
+                danmus[dmid] = Danmu.new_with_notify(
+                    item_data.get("title", ""), cid, notify_id
+                )
+                danmus[dmid].created_time = item.get(f"{data_type.rstrip('d')}_time", 0)
+
+    except Exception as e:
+        logger.debug(f"处理通知项目失败: {e}")
+
+
+async def process_system_notify_item(item: Dict[str, Any], notifies: Dict[int, Notify]):
+    """处理系统通知项目"""
+    try:
+        notify_id = item["id"]
+        content = f"{item['title']}\n{item['content']}"
+
+        # 解析时间
+        time_str = item.get("time_at", "")
+        created_time = 0
+        if time_str:
+            try:
+                dt = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+                created_time = int(dt.timestamp())
+            except:
+                created_time = int(time.time())
+
+        notifies[notify_id] = Notify.new_system_notify(content, item["type"], 0)
+        notifies[notify_id].created_time = created_time
+
+    except Exception as e:
+        logger.debug(f"处理系统通知项目失败: {e}")
+
+
+async def fetch_aicu_comments_incremental(
+        api_service, uid: int, fetcher: IncrementalFetcher,
+        activity_callback: Callable[[Union[str, ActivityInfo]], None] = None
+) -> Dict[int, Comment]:
+    """增量获取AICU评论"""
+
+    last_cursor = fetcher.get_last_sync_cursor(uid, "aicu_comments")
+    last_timestamp = fetcher.get_latest_timestamp(uid, "aicu_comments")
+
+    comments = {}
+    current_page = last_cursor.cursor_id if last_cursor else 1
+    new_items_count = 0
+    max_pages = 20  # 限制最大页数
+
+    for page in range(current_page, current_page + max_pages):
+        try:
+            params = {
+                "uid": uid,
+                "pn": page,
+                "ps": 500,
+                "mode": 0,
+                "keyword": ""
+            }
+
+            data = await api_service.get_cffi_json("https://api.aicu.cc/api/v3/search/getreply", params=params)
+
+            if data.get("code") != 0:
+                logger.warning(f"AICU评论增量获取API错误: {data}")
+                break
+
+            replies = data["data"].get("replies", [])
+            if not replies:
+                logger.info("AICU评论增量获取完成：没有更多数据")
+                break
+
+            # 过滤新数据
+            new_replies = fetcher.filter_new_items(replies, "aicu_comments", last_timestamp)
+
+            if not new_replies:
+                logger.info("AICU评论增量获取完成：没有新数据")
+                break
+
+            # 处理新评论
+            for item in new_replies:
+                try:
+                    rpid = int(item["rpid"])
+                    dyn_data = item.get("dyn", {})
+                    if dyn_data and "oid" in dyn_data and "type" in dyn_data:
+                        comment = Comment(
+                            oid=int(dyn_data["oid"]),
+                            type=int(dyn_data["type"]),
+                            content=item.get("message", ""),
+                            is_selected=True,
+                            created_time=item.get("time", 0)
+                        )
+                        comments[rpid] = comment
+                        new_items_count += 1
+
+                except Exception as e:
+                    logger.debug(f"处理AICU评论项目失败: {e}")
+                    continue
+
+            # 检查是否到达末尾
+            if data["data"].get("cursor", {}).get("is_end", False):
+                logger.info("AICU评论增量获取完成：到达末尾")
+                break
+
+            # 更新进度
+            if activity_callback:
+                activity_info = ActivityInfo(
+                    message="获取新的AICU评论",
+                    current_count=new_items_count,
+                    speed=0.0,
+                    elapsed_time=0.0,
+                    category="aicu_comments_incremental"
+                )
+                activity_callback(activity_info)
+
+            await asyncio.sleep(2)  # AICU请求间隔
+
+        except Exception as e:
+            logger.error(f"获取AICU评论页面失败: {e}")
+            break
+
+    # 保存游标
+    if new_items_count > 0:
+        fetcher.save_sync_cursor(uid, "aicu_comments", current_page)
+
+    logger.info(f"AICU评论增量获取完成，新数据: {new_items_count}")
+    return comments
+
+
+async def fetch_aicu_danmus_incremental(
+        api_service, uid: int, fetcher: IncrementalFetcher,
+        activity_callback: Callable[[Union[str, ActivityInfo]], None] = None
+) -> Dict[int, Danmu]:
+    """增量获取AICU弹幕"""
+
+    last_cursor = fetcher.get_last_sync_cursor(uid, "aicu_danmus")
+    last_timestamp = fetcher.get_latest_timestamp(uid, "aicu_danmus")
+
+    danmus = {}
+    current_page = last_cursor.cursor_id if last_cursor else 1
+    new_items_count = 0
+    max_pages = 20
+
+    for page in range(current_page, current_page + max_pages):
+        try:
+            params = {
+                "uid": uid,
+                "pn": page,
+                "ps": 500,
+                "mode": 0,
+                "keyword": ""
+            }
+
+            data = await api_service.get_cffi_json("https://api.aicu.cc/api/v3/search/getvideodm", params=params)
+
+            if data.get("code") != 0:
+                logger.warning(f"AICU弹幕增量获取API错误: {data}")
+                break
+
+            videodmlist = data["data"].get("videodmlist", [])
+            if not videodmlist:
+                logger.info("AICU弹幕增量获取完成：没有更多数据")
+                break
+
+            # 过滤新数据
+            new_danmus_list = fetcher.filter_new_items(videodmlist, "aicu_danmus", last_timestamp)
+
+            if not new_danmus_list:
+                logger.info("AICU弹幕增量获取完成：没有新数据")
+                break
+
+            # 处理新弹幕
+            for item in new_danmus_list:
+                try:
+                    dmid = int(item["id"])
+                    cid = item.get("oid")
+                    if cid:
+                        danmu = Danmu(
+                            content=item.get("content", ""),
+                            cid=int(cid),
+                            is_selected=True,
+                            created_time=item.get("ctime", 0)
+                        )
+                        danmus[dmid] = danmu
+                        new_items_count += 1
+
+                except Exception as e:
+                    logger.debug(f"处理AICU弹幕项目失败: {e}")
+                    continue
+
+            # 检查是否到达末尾
+            if data["data"].get("cursor", {}).get("is_end", False):
+                logger.info("AICU弹幕增量获取完成：到达末尾")
+                break
+
+            # 更新进度
+            if activity_callback:
+                activity_info = ActivityInfo(
+                    message="获取新的AICU弹幕",
+                    current_count=new_items_count,
+                    speed=0.0,
+                    elapsed_time=0.0,
+                    category="aicu_danmus_incremental"
+                )
+                activity_callback(activity_info)
+
+            await asyncio.sleep(2)
+
+        except Exception as e:
+            logger.error(f"获取AICU弹幕页面失败: {e}")
+            break
+
+    # 保存游标
+    if new_items_count > 0:
+        fetcher.save_sync_cursor(uid, "aicu_danmus", current_page)
+
+    logger.info(f"AICU弹幕增量获取完成，新数据: {new_items_count}")
+    return danmus
+
+
+# 导出新函数
+__all__.extend(['fetch_incremental_data', 'fetch_incremental_by_type',
+                'fetch_aicu_comments_incremental', 'fetch_aicu_danmus_incremental'])
