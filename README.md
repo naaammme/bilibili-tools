@@ -1,7 +1,7 @@
 # Bilibili 评论工具集
+[![GitHub release](https://img.shields.io/github/release/naaammme/bilibili-tools.svg?style=flat-square&logo=github&color=black)](https://github.com/naaammme/bilibili-tools/releases)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-FF69B4.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://python.org)
-[![GitHub release](https://img.shields.io/github/release/naaammme/bilibili-tools.svg?style=flat-square&logo=github&color=black)](https://github.com/naaammme/bilibili-tools/releases)
 
 一个Bilibili小工具集合,提供评论清理、批量取关、数据统计、私信管理等功能。
 
