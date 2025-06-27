@@ -1,7 +1,7 @@
 # Bilibili 评论工具集
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-FF69B4.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://python.org)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![GitHub release](https://img.shields.io/github/release/naaammme/bilibili-tools.svg)](https://github.com/naaammme/bilibili-tools/releases)
+[![GitHub release](https://img.shields.io/github/release/naaammme/bilibili-tools.svg?style=flat-square&logo=github&color=black)](https://github.com/naaammme/bilibili-tools/releases)
 
 一个Bilibili小工具集合,提供评论清理、批量取关、数据统计、私信管理等功能。
 
@@ -52,8 +52,8 @@ pip install -r requirements.txt
 python main.py
 
 
-## ⚠️ 潜在风险提示：
-- 短时间大量请求api可能触发风控，导致部分操作失败,请使用网络代理工具
+## ⚠️ 潜在风险提示
+- 短时间大量请求api可能触发风控，导致部分操作失败，请使用网络代理工具
 - 尽管概率较低，但不能完全排除因滥用导致账号被封禁或触发其他限制的可能性
 - 为了控制风险,如果你有上千条内容需要清理，请不要一次性完成并保持默认延迟
 
