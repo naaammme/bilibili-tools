@@ -947,6 +947,19 @@ async def fetch_aicu_comments_incremental(
                             is_selected=True,
                             created_time=item.get("time", 0)
                         )
+                         # 设置source
+                        comment.source = "aicu"
+                        comment.synced_time = int(time.time())
+
+                        # 保存parent信息
+                        parent_info = item.get("parent", {})
+                        if parent_info:
+                            comment.parent = parent_info
+                        else:
+                            comment.parent = None
+
+                        # 添加rank信息
+                        comment.rank = item.get("rank", 1)
                         comments[rpid] = comment
                         new_items_count += 1
 
@@ -1038,6 +1051,8 @@ async def fetch_aicu_danmus_incremental(
                             is_selected=True,
                             created_time=item.get("ctime", 0)
                         )
+                        danmu.source = "aicu"
+                        danmu.synced_time = int(time.time())
                         danmus[dmid] = danmu
                         new_items_count += 1
 
