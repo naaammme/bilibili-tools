@@ -1,0 +1,493 @@
+{
+  "code": 0,
+  "msg": "0",
+  "message": "0",
+  "ttl": 1,
+  "data": {
+    "messages": [
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"🔥整点电子榨菜\\n🔥这谁看了不迷糊啊\\n🔥年轻人生活图鉴\\n流量密码都在这了！投稿就有机会登上热门\\n立即参与\\u003e\\u003ehttps://member.bilibili.com/york/up-inspiration/today?navhide=1\\u0026tab_id=20\\u0026from=10\"}",
+        "msg_seqno": 1931588208431138,
+        "timestamp": 1750827617,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7519747356550987863,
+        "msg_status": 0,
+        "notify_code": "2091_296",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 10,
+        "content": "{\"title\":\"UP主荣誉周报\",\"text\":\"本周达成【让弹幕飞】成就，快来看看你的一周表现吧！\",\"jump_text\":\"查看周报\",\"jump_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"modules\":null,\"jump_text_2\":\"\",\"jump_uri_2\":\"\",\"jump_text_3\":\"\",\"jump_uri_3\":\"\",\"notifier\":null,\"jump_uri_config\":{\"all_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"harmony_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"text\":\"查看周报\"},\"jump_uri_2_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"jump_uri_3_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"biz_content\":null}",
+        "msg_seqno": 1929513218953220,
+        "timestamp": 1750703950,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7519216210867094314,
+        "msg_status": 0,
+        "notify_code": "2091_61",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"🔥被资本做局了\\n🔥二次元泳装派对\\n🔥热爱平凡每一天\\n为您精选独家灵感，投稿有机会获得创作奖励哦\\n查看创作灵感\\u003e\\u003ehttps://member.bilibili.com/york/up-inspiration/today?navhide=1\\u0026tab_id=2\\u0026from=10\"}",
+        "msg_seqno": 1925882226946064,
+        "timestamp": 1750487526,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7518286676647467627,
+        "msg_status": 0,
+        "notify_code": "2091_297",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"🔥整点电子榨菜\\n🔥这谁看了不迷糊啊\\n🔥年轻人生活图鉴\\n流量密码都在这了！投稿就有机会登上热门\\n立即参与\\u003e\\u003ehttps://member.bilibili.com/york/up-inspiration/today?navhide=1\\u0026tab_id=20\\u0026from=10\"}",
+        "msg_seqno": 1921502871019535,
+        "timestamp": 1750226496,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7517165561240517561,
+        "msg_status": 0,
+        "notify_code": "2091_296",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 10,
+        "content": "{\"title\":\"UP主荣誉周报\",\"text\":\"本周达成【金话筒】成就，快来看看你的一周表现吧！\",\"jump_text\":\"查看周报\",\"jump_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"modules\":null,\"jump_text_2\":\"\",\"jump_uri_2\":\"\",\"jump_text_3\":\"\",\"jump_uri_3\":\"\",\"notifier\":null,\"jump_uri_config\":{\"all_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"harmony_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"text\":\"查看周报\"},\"jump_uri_2_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"jump_uri_3_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"biz_content\":null}",
+        "msg_seqno": 1919018533687310,
+        "timestamp": 1750078418,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7516529571519079987,
+        "msg_status": 0,
+        "notify_code": "2091_61",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"🔥天真的橡皮\\n🔥热爱平凡每一天\\n🔥一定要频繁记录自己\\n为您精选独家灵感，投稿有机会获得创作奖励哦\\n查看创作灵感\\u003e\\u003ehttps://member.bilibili.com/york/up-inspiration/today?navhide=1\\u0026tab_id=2\\u0026from=10\"}",
+        "msg_seqno": 1915732464164878,
+        "timestamp": 1749882553,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7515688337440982512,
+        "msg_status": 0,
+        "notify_code": "2091_297",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"【优惠券未使用提示】您有1张必火推广优惠券尚未使用，快来必火推广加热您的内容吧！https://cm.bilibili.com/fly-h5/#/fly/coupon-list?from=promotion_2091456\"}",
+        "msg_seqno": 1913630078492674,
+        "timestamp": 1749757241,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7515150126667733861,
+        "msg_status": 0,
+        "notify_code": "2091_456",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"🔥整点电子榨菜\\n🔥这谁看了不迷糊啊\\n🔥我们的家庭日记\\n流量密码都在这了！投稿就有机会登上热门\\n立即参与\\u003e\\u003ehttps://member.bilibili.com/york/up-inspiration/today?navhide=1\\u0026tab_id=20\\u0026from=10\"}",
+        "msg_seqno": 1911352285409304,
+        "timestamp": 1749621474,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7514567011880972255,
+        "msg_status": 0,
+        "notify_code": "2091_296",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 10,
+        "content": "{\"title\":\"UP主荣誉周报\",\"text\":\"本周达成【让弹幕飞】成就，快来看看你的一周表现吧！\",\"jump_text\":\"查看周报\",\"jump_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"modules\":null,\"jump_text_2\":\"\",\"jump_uri_2\":\"\",\"jump_text_3\":\"\",\"jump_uri_3\":\"\",\"notifier\":null,\"jump_uri_config\":{\"all_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"harmony_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"text\":\"查看周报\"},\"jump_uri_2_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"jump_uri_3_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"biz_content\":null}",
+        "msg_seqno": 1909047196483599,
+        "timestamp": 1749484080,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7513976909253757415,
+        "msg_status": 0,
+        "notify_code": "2091_61",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"【优惠券即将过期】您有2张必火推广优惠券将在48小时后过期，快来必火推广加热您的内容吧！https://cm.bilibili.com/fly-h5/#/fly/coupon-list?from=promotion_2091455\\n\"}",
+        "msg_seqno": 1907813114740742,
+        "timestamp": 1749410523,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7513660983891982184,
+        "msg_status": 0,
+        "notify_code": "2091_455",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"🔥平凡才是唯一答案\\n🔥当知足凌驾于自卑之上，幸福将贯彻一生\\n🔥少年请勇敢向前\\n为您精选独家灵感，投稿有机会获得创作奖励哦\\n查看创作灵感\\u003e\\u003ehttps://member.bilibili.com/york/up-inspiration/today?navhide=1\\u0026tab_id=2\\u0026from=10\"}",
+        "msg_seqno": 1905507254140930,
+        "timestamp": 1749273082,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7513070679973179773,
+        "msg_status": 0,
+        "notify_code": "2091_297",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"🔥整点电子榨菜\\n🔥这谁看了不迷糊啊\\n🔥我们的家庭日记\\n流量密码都在这了！投稿就有机会登上热门\\n立即参与\\u003e\\u003ehttps://member.bilibili.com/york/up-inspiration/today?navhide=1\\u0026tab_id=20\\u0026from=10\"}",
+        "msg_seqno": 1901204099739657,
+        "timestamp": 1749016595,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7511969072412613656,
+        "msg_status": 0,
+        "notify_code": "2091_296",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 10,
+        "content": "{\"title\":\"您的稿件已通过审核\",\"text\":\"您的稿件《【GTA5增强版】NVE画质补丁安装全过程》（BV1NL7hzxEu7)已经通过审核。\",\"jump_text\":\"快分享给好友吧\",\"jump_uri\":\"http://www.bilibili.com/video/BV1NL7hzxEu7?pop_share=1\",\"modules\":null,\"jump_text_2\":\"审核满意度\",\"jump_uri_2\":\"https://www.bilibili.com/blackboard/activity-dAka2U8hjy.html\",\"jump_text_3\":\"\",\"jump_uri_3\":\"\",\"notifier\":null,\"jump_uri_config\":{\"all_uri\":\"http://www.bilibili.com/video/BV1NL7hzxEu7?pop_share=1\",\"harmony_uri\":\"http://www.bilibili.com/video/BV1NL7hzxEu7?pop_share=1\",\"text\":\"快分享给好友吧\"},\"jump_uri_2_config\":{\"all_uri\":\"https://www.bilibili.com/blackboard/activity-dAka2U8hjy.html\",\"harmony_uri\":\"https://www.bilibili.com/blackboard/activity-dAka2U8hjy.html\",\"text\":\"审核满意度\"},\"jump_uri_3_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"biz_content\":null}",
+        "msg_seqno": 1900217297285122,
+        "timestamp": 1748957777,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7511716454379200647,
+        "msg_status": 0,
+        "notify_code": "2091_412",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 10,
+        "content": "{\"title\":\"动态违规处理通知\",\"text\":\"您的动态已被移除。请自觉遵守国家相关法律法规及《社区规则》，良好的社区氛围需要大家一起维护。\",\"jump_text\":\"\",\"jump_uri\":\"\",\"modules\":[{\"title\":\"动态id\",\"detail\":\"1056613777924947976\"},{\"title\":\"原因\",\"detail\":\"涉及不适宜内容\"}],\"jump_text_2\":\"\",\"jump_uri_2\":\"\",\"jump_text_3\":\"\",\"jump_uri_3\":\"\",\"notifier\":null,\"jump_uri_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"jump_uri_2_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"jump_uri_3_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"biz_content\":null}",
+        "msg_seqno": 1831314546933763,
+        "timestamp": 1744850853,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7494077350301089015,
+        "msg_status": 0,
+        "notify_code": "2091_121",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 10,
+        "content": "{\"title\":\"里程碑达成通知\",\"text\":\"恭喜！累计收获1000次点赞，已解锁专属徽章，和大家一起分享你的成就吧！\",\"jump_text\":\"查看详情\",\"jump_uri\":\"https://member.bilibili.com/york/honor-wall-h5/share?medal_id=5004\",\"modules\":null,\"jump_text_2\":\"\",\"jump_uri_2\":\"\",\"jump_text_3\":\"\",\"jump_uri_3\":\"\",\"notifier\":null,\"jump_uri_config\":{\"all_uri\":\"https://member.bilibili.com/york/honor-wall-h5/share?medal_id=5004\",\"harmony_uri\":\"https://member.bilibili.com/york/honor-wall-h5/share?medal_id=5004\",\"text\":\"查看详情\"},\"jump_uri_2_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"jump_uri_3_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"biz_content\":null}",
+        "msg_seqno": 1802593512865801,
+        "timestamp": 1743138946,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7486724766083569806,
+        "msg_status": 0,
+        "notify_code": "2091_49",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 10,
+        "content": "{\"title\":\"评论违规处理通知\",\"text\":\"您好，您在这一次只有音频了，很多同志要，想了想还是尝试补了一下，公众号下的评论「公众号?胆子不小」存在违规推广内容，违反了《关于违规推广行为的治理公告》社区规范，已被移除。您可重新发布符合社区规范的内容或使用官方“经营助手”功能配置微信号、QQ号等联系方式信息。\\n如您有课程售卖需求，可入驻“哔哩哔哩课堂”；游戏相关服务，可申请开通“帮我玩”功能；如您为企业性质账号，可进行官方效果广告等合作、申请加入“品牌号招募计划”等，获取更多营销转化能力。\\n详细站内经营方式介绍、使用指南可点击下方查看，如有疑问欢迎联系客服或自助申诉。\",\"jump_text\":\"官方经营方式及使用指南\",\"jump_uri\":\"https://www.bilibili.com/blackboard/activity-BPiQy33YHl.html\",\"modules\":null,\"jump_text_2\":\"《关于违规推广行为的治理公告》\",\"jump_uri_2\":\"https://www.bilibili.com/read/cv27532058\",\"jump_text_3\":\"自助申诉\",\"jump_uri_3\":\"https://www.bilibili.com/h5/comment/appeal\",\"notifier\":null,\"jump_uri_config\":{\"all_uri\":\"https://www.bilibili.com/blackboard/activity-BPiQy33YHl.html\",\"harmony_uri\":\"\",\"text\":\"官方经营方式及使用指南\"},\"jump_uri_2_config\":{\"all_uri\":\"https://www.bilibili.com/read/cv27532058\",\"harmony_uri\":\"\",\"text\":\"《关于违规推广行为的治理公告》\"},\"jump_uri_3_config\":{\"all_uri\":\"https://www.bilibili.com/h5/comment/appeal\",\"harmony_uri\":\"\",\"text\":\"自助申诉\"},\"biz_content\":null}",
+        "msg_seqno": 1792179022479360,
+        "timestamp": 1742518194,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7484058655977067329,
+        "msg_status": 0,
+        "notify_code": "2091_341",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 10,
+        "content": "{\"title\":\"里程碑达成通知\",\"text\":\"恭喜！你的粉丝数达到100，已解锁专属徽章，和大家一起分享你的成就吧！\",\"jump_text\":\"查看详情\",\"jump_uri\":\"https://member.bilibili.com/york/honor-wall-h5/share?medal_id=6006\",\"modules\":null,\"jump_text_2\":\"\",\"jump_uri_2\":\"\",\"jump_text_3\":\"\",\"jump_uri_3\":\"\",\"notifier\":null,\"jump_uri_config\":{\"all_uri\":\"https://member.bilibili.com/york/honor-wall-h5/share?medal_id=6006\",\"harmony_uri\":\"https://member.bilibili.com/york/honor-wall-h5/share?medal_id=6006\",\"text\":\"查看详情\"},\"jump_uri_2_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"jump_uri_3_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"biz_content\":null}",
+        "msg_seqno": 1786638934704139,
+        "timestamp": 1742187979,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7482640393712454835,
+        "msg_status": 0,
+        "notify_code": "2091_43",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"🔥AMD 90系显卡发布\\n🔥美食挑战赛\\n🔥美食踏春尝鲜季\\n为您精选独家灵感，投稿有机会获得创作奖励哦\\n查看创作灵感\\u003e\\u003ehttps://member.bilibili.com/york/up-inspiration/today?navhide=1\\u0026tab_id=2\\u0026from=10\"}",
+        "msg_seqno": 1783835562704911,
+        "timestamp": 1742020885,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7481922730656487673,
+        "msg_status": 0,
+        "notify_code": "2091_297",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"【优惠券即将过期】您有1张必火推广优惠券将在48小时后过期，快来必火推广加热您的内容吧！https://cm.bilibili.com/fly-h5/#/fly/coupon-list\"}",
+        "msg_seqno": 1783135432704003,
+        "timestamp": 1741979154,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7481743497189710851,
+        "msg_status": 0,
+        "notify_code": "2091_444",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 10,
+        "content": "{\"title\":\"里程碑达成通知\",\"text\":\"恭喜！累计收获100次分享，已解锁专属徽章，和大家一起分享你的成就吧！\",\"jump_text\":\"查看详情\",\"jump_uri\":\"https://member.bilibili.com/york/honor-wall-h5/share?medal_id=3002\",\"modules\":null,\"jump_text_2\":\"\",\"jump_uri_2\":\"\",\"jump_text_3\":\"\",\"jump_uri_3\":\"\",\"notifier\":null,\"jump_uri_config\":{\"all_uri\":\"https://member.bilibili.com/york/honor-wall-h5/share?medal_id=3002\",\"harmony_uri\":\"https://member.bilibili.com/york/honor-wall-h5/share?medal_id=3002\",\"text\":\"查看详情\"},\"jump_uri_2_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"jump_uri_3_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"biz_content\":null}",
+        "msg_seqno": 1782301504208900,
+        "timestamp": 1741929448,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7481530011363360009,
+        "msg_status": 0,
+        "notify_code": "2091_53",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"🔥整点电子榨菜\\n🔥这谁看了不迷糊啊\\n🔥我们的家庭日记\\n流量密码都在这了！投稿就有机会登上热门\\n立即参与\\u003e\\u003ehttps://member.bilibili.com/york/up-inspiration/today?navhide=1\\u0026tab_id=20\\u0026from=10\"}",
+        "msg_seqno": 1779387318665221,
+        "timestamp": 1741755749,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7480783979608489920,
+        "msg_status": 0,
+        "notify_code": "2091_296",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 10,
+        "content": "{\"title\":\"UP主荣誉周报\",\"text\":\"本周达成【弹幕发射机】成就，快来看看你的一周表现吧！\",\"jump_text\":\"查看周报\",\"jump_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"modules\":null,\"jump_text_2\":\"\",\"jump_uri_2\":\"\",\"jump_text_3\":\"\",\"jump_uri_3\":\"\",\"notifier\":null,\"jump_uri_config\":{\"all_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"harmony_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"text\":\"查看周报\"},\"jump_uri_2_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"jump_uri_3_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"biz_content\":null}",
+        "msg_seqno": 1776947307544589,
+        "timestamp": 1741610313,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7480159337473858172,
+        "msg_status": 0,
+        "notify_code": "2091_61",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"🔥我又幻想了\\n🔥竹林游戏解说\\n🔥第五人格碎片日常\\n为您精选独家灵感，投稿有机会获得创作奖励哦\\n查看创作灵感\\u003e\\u003ehttps://member.bilibili.com/york/up-inspiration/today?navhide=1\\u0026tab_id=2\\u0026from=10\"}",
+        "msg_seqno": 1773603709059088,
+        "timestamp": 1741411019,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7479303375933125373,
+        "msg_status": 0,
+        "notify_code": "2091_297",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"🔥整点电子榨菜\\n🔥这谁看了不迷糊啊\\n🔥我们的家庭日记\\n流量密码都在这了！投稿就有机会登上热门\\n立即参与\\u003e\\u003ehttps://member.bilibili.com/york/up-inspiration/today?navhide=1\\u0026tab_id=20\\u0026from=10\"}",
+        "msg_seqno": 1769244535291923,
+        "timestamp": 1741151192,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7478187427478345758,
+        "msg_status": 0,
+        "notify_code": "2091_296",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 10,
+        "content": "{\"title\":\"UP主荣誉周报\",\"text\":\"本周达成【一骑绝尘】成就，快来看看你的一周表现吧！\",\"jump_text\":\"查看周报\",\"jump_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"modules\":null,\"jump_text_2\":\"\",\"jump_uri_2\":\"\",\"jump_text_3\":\"\",\"jump_uri_3\":\"\",\"notifier\":null,\"jump_uri_config\":{\"all_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"harmony_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"text\":\"查看周报\"},\"jump_uri_2_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"jump_uri_3_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"biz_content\":null}",
+        "msg_seqno": 1767225682624517,
+        "timestamp": 1741030859,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7477670601550439713,
+        "msg_status": 0,
+        "notify_code": "2091_61",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"🔥我又幻想了\\n🔥竹林游戏解说\\n🔥哪吒2全球动画票房榜第1\\n为您精选独家灵感，投稿有机会获得创作奖励哦\\n查看创作灵感\\u003e\\u003ehttps://member.bilibili.com/york/up-inspiration/today?navhide=1\\u0026tab_id=2\\u0026from=10\"}",
+        "msg_seqno": 1763557897895942,
+        "timestamp": 1740812242,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7476731648143457861,
+        "msg_status": 0,
+        "notify_code": "2091_297",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"🔥整点电子榨菜\\n🔥这谁看了不迷糊啊\\n🔥我们的家庭日记\\n流量密码都在这了！投稿就有机会登上热门\\n立即参与\\u003e\\u003ehttps://member.bilibili.com/york/up-inspiration/today?navhide=1\\u0026tab_id=20\\u0026from=10\"}",
+        "msg_seqno": 1759097255510033,
+        "timestamp": 1740546364,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7475589711001277342,
+        "msg_status": 0,
+        "notify_code": "2091_296",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 10,
+        "content": "{\"title\":\"UP主荣誉周报\",\"text\":\"本周达成【金话筒】成就，快来看看你的一周表现吧！\",\"jump_text\":\"查看周报\",\"jump_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"modules\":null,\"jump_text_2\":\"\",\"jump_uri_2\":\"\",\"jump_text_3\":\"\",\"jump_uri_3\":\"\",\"notifier\":null,\"jump_uri_config\":{\"all_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"harmony_uri\":\"https://member.bilibili.com/york/up-report-weekly?navhide=1\\u0026from=message-assistant\",\"text\":\"查看周报\"},\"jump_uri_2_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"jump_uri_3_config\":{\"harmony_uri\":\"\",\"text\":\"\"},\"biz_content\":null}",
+        "msg_seqno": 1756493482065923,
+        "timestamp": 1740391170,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7474923157584883003,
+        "msg_status": 0,
+        "notify_code": "2091_61",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"【优惠券未使用提示】您有1张必火推广优惠券尚未使用，快来必火推广加热您的内容吧！https://cm.bilibili.com/fly-h5/#/fly/coupon-list\\n\"}",
+        "msg_seqno": 1755594156146689,
+        "timestamp": 1740337566,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7474692929997718781,
+        "msg_status": 0,
+        "notify_code": "2091_445",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 844424930131966,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 1,
+        "content": "{\"content\":\"🔥deepseek花式整活\\n🔥哪吒2走向世界\\n🔥探索deepseek\\n为您精选独家灵感，投稿有机会获得创作奖励哦\\n查看创作灵感\\u003e\\u003ehttps://member.bilibili.com/york/up-inspiration/today?navhide=1\\u0026tab_id=2\\u0026from=10\"}",
+        "msg_seqno": 1753414175211539,
+        "timestamp": 1740207629,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7474134855697176987,
+        "msg_status": 0,
+        "notify_code": "2091_297",
+        "msg_source": 6
+      }
+    ],
+    "has_more": 1,
+    "min_seqno": 1753414175211539,
+    "max_seqno": 1931588208431138
+  }
+}

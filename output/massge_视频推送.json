@@ -1,0 +1,79 @@
+{
+  "code": 0,
+  "msg": "0",
+  "message": "0",
+  "ttl": 1,
+  "data": {
+    "messages": [
+      {
+        "sender_uid": 1871365234,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 11,
+        "content": "{\"title\":\"医疗条件越来越好，人类停止进化了吗？\",\"times\":644,\"cover\":\"http://i1.hdslb.com/bfs/archive/471875e9843525ccc1ce734eac04e732a0353107.jpg\",\"rid\":114743658481795,\"type_\":8,\"desc\":\"找夏先生：big_questions，或者欢迎订阅同名微公号「大问题Dialectic」，更多精彩内容等着你！\",\"bvid\":\"BV1gVKHz1EXE\",\"view\":4847,\"danmaku\":37,\"pub_date\":1750930500,\"attach_msg\":{\"id\":923539,\"content\":\"UP主赠言：更新！快来看新一期大问题！\"}}",
+        "msg_seqno": 1933314416177163,
+        "timestamp": 1750930515,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7520189299775668801,
+        "msg_status": 0,
+        "notify_code": "",
+        "new_face_version": 1,
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 1871365234,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 11,
+        "content": "{\"title\":\"假如宇宙没有你，它还会存在吗？\",\"times\":3609,\"cover\":\"http://i1.hdslb.com/bfs/archive/a219c4e0847b429eb59e4a76697b35c9bdf9097a.jpg\",\"rid\":114664537131791,\"type_\":8,\"desc\":\"找夏先生：big_questions，或者欢迎订阅同名微公号「大问题Dialectic」，更多精彩内容等着你！\",\"bvid\":\"BV11BMJzqEhM\",\"view\":148988,\"danmaku\":2147,\"pub_date\":1749720900,\"attach_msg\":{\"id\":923539,\"content\":\"UP主赠言：更新！快来看新一期大问题！\"}}",
+        "msg_seqno": 1913021149462531,
+        "timestamp": 1749720945,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7514994236274583414,
+        "msg_status": 0,
+        "notify_code": "",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 1871365234,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 11,
+        "content": "{\"title\":\"【开悟时刻】摆脱受害者心态，别再脑补「坏人」了\",\"times\":770,\"cover\":\"http://i0.hdslb.com/bfs/archive/e209d2115575fea03acb9441be48b01c2f2d875b.jpg\",\"rid\":114585331895825,\"type_\":8,\"desc\":\"找夏先生：big_questions，或者欢迎订阅同名微公号「大问题Dialectic」，更多精彩内容等着你！\",\"bvid\":\"BV1oGjqzoEWF\",\"view\":926,\"danmaku\":15,\"pub_date\":1748511300,\"attach_msg\":{\"id\":923539,\"content\":\"UP主赠言：更新！快来看新一期大问题！\"}}",
+        "msg_seqno": 1892727058890793,
+        "timestamp": 1748511315,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7509798915227291553,
+        "msg_status": 0,
+        "notify_code": "",
+        "msg_source": 6
+      },
+      {
+        "sender_uid": 1871365234,
+        "receiver_type": 1,
+        "receiver_id": 3546388174473844,
+        "msg_type": 11,
+        "content": "{\"title\":\"【开悟时刻】如何摆脱精神内耗，斯多葛主义的「精神止损法」\",\"times\":1101,\"cover\":\"http://i0.hdslb.com/bfs/archive/e05eef332408a1f249ade8307d43d656f27f88bf.jpg\",\"rid\":114505757493448,\"type_\":8,\"desc\":\"找夏先生：big_questions，或者欢迎订阅同名微公号「大问题Dialectic」，更多精彩内容等着你！\",\"bvid\":\"BV158EvzsEZt\",\"view\":96639,\"danmaku\":506,\"pub_date\":1747301700,\"attach_msg\":{\"id\":923539,\"content\":\"UP主赠言：更新！快来看新一期大问题！\"}}",
+        "msg_seqno": 1872433288331271,
+        "timestamp": 1747301715,
+        "at_uids": [
+          0
+        ],
+        "msg_key": 7504603722384432699,
+        "msg_status": 0,
+        "notify_code": "",
+        "msg_source": 6
+      },
+
+    ],
+    "has_more": 1,
+    "min_seqno": 1454998605479963,
+    "max_seqno": 1933314416177163
+  }
+}

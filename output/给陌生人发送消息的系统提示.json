@@ -1,0 +1,27 @@
+{
+  "code": 0,
+  "msg": "0",
+  "message": "0",
+  "ttl": 1,
+  "data": {
+    "messages": [
+      {
+        "sender_uid": 3546388174473844,
+        "receiver_type": 1,
+        "receiver_id": 0,
+        "msg_type": 18,
+        "content": "{\"content\":\"[{\\\"text\\\":\\\"对方主动回复或关注你前，最多发送1条消息\\\",\\\"color_day\\\":\\\"#9499A0\\\",\\\"color_nig\\\":\\\"#9499A0\\\"}]\"}",
+        "msg_seqno": 1926232602337291,
+        "timestamp": 1750508410,
+        "at_uids": null,
+        "msg_key": 7518376372938089737,
+        "msg_status": 0,
+        "notify_code": "",
+        "msg_source": 18
+      }
+    ],
+    "has_more": 0,
+    "min_seqno": 1926232602337291,
+    "max_seqno": 1926232602337291
+  }
+}
