@@ -34,7 +34,7 @@
 
 ## 📋使用说明
 **方式一**:
-- 从 [Releases 页面](releases) 下载可执行文件
+- 从 [Releases 页面](https://github.com/naaammme/bilibili-tools/releases) 下载可执行文件
 - 运行程序，选择扫码或Cookie登录
 
 **方式二**:
