@@ -38,19 +38,20 @@
 - 运行程序，选择扫码或Cookie登录
 
 **方式二**:
-- 克隆仓库:
+```bash
+#1,克隆仓库:
+git clone https://github.com/naaammme/bilibili-tools.git
+cd bilibili-comment-cleaning
 
-  git clone https://github.com/naaammme/bilibili-tools.git
-
-  cd bilibili-comment-cleaning
-
-- 创建虚拟环境:
+#2,创建虚拟环境:
 bashpython -m venv venv
-- 安装依赖:
-pip install -r requirements.txt
-- 运行程序:
-python main.py
 
+#3,安装依赖:
+pip install -r requirements.txt
+
+#4,运行程序:
+python main.py
+```
 
 ## ⚠️ 潜在风险提示
 - 短时间大量请求api可能触发风控，导致部分操作失败，请使用网络代理工具
