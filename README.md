@@ -56,13 +56,13 @@ python main.py
 ## ⚠️ 潜在风险提示
 - 短时间大量请求api可能触发风控，导致部分操作失败，请使用网络代理工具
 - 尽管概率较低，但不能完全排除因滥用导致账号被封禁或触发其他限制的可能性
-- 为了控制风险,如果你有上千条内容需要清理，请不要一次性完成并保持默认延迟
+- 软件仅供学习交流请勿滥用，造成的风险后果本人概不负责
 
 ## 🦕 开发中的
 - 批量取消对某个up所有视频的点赞
 - 批量取消最近点赞视频的点赞
-- 记录自己发的评论
 - 批量取消收藏夹收藏
+
 ## 🙏  致谢
 
 本项目部分功能的实现思路参考了[Initsnow/bilibili-comment-cleaning](https://github.com/Initsnow/bilibili-comment-cleaning) 和[sw1128/Bilinili_UnFolow](https://github.com/sw1128/Bilibili_UnFollow.git)
