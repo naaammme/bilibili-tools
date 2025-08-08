@@ -273,7 +273,7 @@ jobs:
         if is_macos:
             app = BUNDLE(
                 exe,
-                name='Bilibili小工具.app',
+                name='Bilibili-Tool.app',
                 icon=icon_path,
                 bundle_identifier='com.bilibili.tools',
                 info_plist={
@@ -310,37 +310,36 @@ jobs:
         
         if [ "${{ matrix.platform }}" = "windows" ]; then
           if [ -f "Bilibili小工具.exe" ]; then
-            mv "Bilibili小工具.exe" "Bilibili小工具-Windows-x64.exe"
+            mv "Bilibili小工具.exe" "BilibiliTools-Windows-x64.exe" 
           fi
         elif [ "${{ matrix.platform }}" = "macos" ]; then
-          # 为macOS创建DMG
           if [ -d "Bilibili小工具.app" ]; then
-            hdiutil create -volname "Bilibili小工具" -srcfolder "Bilibili小工具.app" -ov -format UDZO "Bilibili小工具-macOS-x64.dmg"
+            mv "Bilibili小工具.app" "BilibiliTools.app" 
+            hdiutil create -volname "BilibiliTools" -srcfolder "BilibiliTools.app" -ov -format UDZO "BilibiliTools-macOS-x64.dmg"
           fi
           if [ -f "Bilibili小工具" ]; then
-            mv "Bilibili小工具" "Bilibili小工具-macOS-x64"
+            mv "Bilibili小工具" "BilibiliTools-macOS-x64"  
           fi
         else  # Linux
           if [ -f "Bilibili小工具" ]; then
-            mv "Bilibili小工具" "Bilibili小工具-Linux-x64"
-            chmod +x "Bilibili小工具-Linux-x64"
+            mv "Bilibili小工具" "BilibiliTools-Linux-x64" 
+            chmod +x "BilibiliTools-Linux-x64"
           fi
         fi
-        
         echo "=== 重命名后的文件 ==="
         ls -la
       shell: bash
 
-    - name: 上传构建产物
+    - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}
         path: |
-          dist/Bilibili小工具-Windows-x64.exe
-          dist/Bilibili小工具-macOS-x64
-          dist/Bilibili小工具-macOS-x64.dmg
-          dist/Bilibili小工具.app/
-          dist/Bilibili小工具-Linux-x64
+          dist/BilibiliTools-Windows-x64.exe
+          dist/BilibiliTools-macOS-x64
+          dist/BilibiliTools-macOS-x64.dmg
+          dist/BilibiliTools.app/
+          dist/BilibiliTools-Linux-x64
         retention-days: 30
 
   release:
