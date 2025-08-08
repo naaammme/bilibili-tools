@@ -3,7 +3,6 @@ name: 跨平台构建Bilibili工具
 on:
   push:
     branches: [ main, develop ]
-    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -23,7 +22,7 @@ jobs:
             platform: macos
             arch: x64
             executable_suffix: ""
-            artifact_name: bilibili-tools-macos-x644
+            artifact_name: bilibili-tools-macos-x64
           - os: ubuntu-latest
             platform: linux
             arch: x64
@@ -47,7 +46,6 @@ jobs:
         echo "PYTHONIOENCODING=utf-8" >> $GITHUB_ENV
         echo "PYTHONUTF8=1" >> $GITHUB_ENV
       shell: bash
-
 
     - name: 安装Linux系统依赖
       if: matrix.platform == 'linux'
@@ -155,17 +153,17 @@ jobs:
         is_macos = sys.platform == 'darwin'
         is_linux = sys.platform.startswith('linux')
 
-        # 设置平台特定的配置
+        # 设置平台特定的配置 
         if is_windows:
-            exe_name = 'Bilibili-Tool'
+            exe_name = 'BilibiliTools'  
             console_mode = False
             icon_path = 'assets/1.png' if os.path.exists('assets/1.png') else None
         elif is_macos:
-            exe_name = 'Bilibili-Tool'
+            exe_name = 'BilibiliTools' 
             console_mode = False
             icon_path = 'assets/1.png' if os.path.exists('assets/1.png') else None
         else:  # Linux
-            exe_name = 'Bilibili-Tool'
+            exe_name = 'BilibiliTools'  
             console_mode = False
             icon_path = None
 
@@ -273,7 +271,7 @@ jobs:
         if is_macos:
             app = BUNDLE(
                 exe,
-                name='Bilibili-Tool.app',
+                name='BilibiliTools.app',  # 改为英文
                 icon=icon_path,
                 bundle_identifier='com.bilibili.tools',
                 info_plist={
@@ -300,7 +298,7 @@ jobs:
         pyinstaller cross-platform.spec --noconfirm --clean
         
         # 检查构建结果
-        echo "构建完成"
+        echo "=== 构建完成，检查原始文件 ==="
         ls -la dist/
       shell: bash
 
@@ -309,55 +307,69 @@ jobs:
         cd dist
         
         if [ "${{ matrix.platform }}" = "windows" ]; then
-          if [ -f "Bilibili小工具.exe" ]; then
-            mv "Bilibili小工具.exe" "BilibiliTools-Windows-x64.exe" 
+          if [ -f "BilibiliTools.exe" ]; then
+            mv "BilibiliTools.exe" "BilibiliTools-Windows-x64.exe"
+            echo "Windows可执行文件重命名成功"
+          else
+            echo "Windows可执行文件未找到，当前文件："
+            ls -la *.exe || echo "没有exe文件"
           fi
         elif [ "${{ matrix.platform }}" = "macos" ]; then
-          if [ -d "Bilibili小工具.app" ]; then
-            mv "Bilibili小工具.app" "BilibiliTools.app" 
+          # 处理.app包
+          if [ -d "BilibiliTools.app" ]; then
+            echo "找到.app包，创建DMG..."
             hdiutil create -volname "BilibiliTools" -srcfolder "BilibiliTools.app" -ov -format UDZO "BilibiliTools-macOS-x64.dmg"
+            echo "DMG创建成功"
+          else
+            echo ".app包未找到，当前目录："
+            ls -la
           fi
-          if [ -f "Bilibili小工具" ]; then
-            mv "Bilibili小工具" "BilibiliTools-macOS-x64"  
+          # 处理可执行文件
+          if [ -f "BilibiliTools" ]; then
+            cp "BilibiliTools" "BilibiliTools-macOS-x64"
+            echo "macOS可执行文件重命名成功"
+          else
+            echo "macOS可执行文件未找到"
           fi
         else  # Linux
-          if [ -f "Bilibili小工具" ]; then
-            mv "Bilibili小工具" "BilibiliTools-Linux-x64" 
+          if [ -f "BilibiliTools" ]; then
+            mv "BilibiliTools" "BilibiliTools-Linux-x64"
             chmod +x "BilibiliTools-Linux-x64"
+            echo "Linux可执行文件重命名成功"
+          else
+            echo "Linux可执行文件未找到，当前文件："
+            ls -la
           fi
         fi
+        
         echo "=== 重命名后的文件 ==="
         ls -la
       shell: bash
 
-    - name: Upload build artifacts
+    # 分平台上传，避免路径问题
+    - name: 上传Windows构建产物
+      if: matrix.platform == 'windows'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: dist/BilibiliTools-Windows-x64.exe
+        retention-days: 30
+
+    - name: 上传macOS构建产物
+      if: matrix.platform == 'macos'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}
         path: |
-          dist/BilibiliTools-Windows-x64.exe
-          dist/BilibiliTools-macOS-x64
           dist/BilibiliTools-macOS-x64.dmg
-          dist/BilibiliTools.app/
-          dist/BilibiliTools-Linux-x64
+          dist/BilibiliTools-macOS-x64
+          dist/BilibiliTools.app
         retention-days: 30
 
-  release:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - name: 下载所有构建产物
-      uses: actions/download-artifact@v4
+    - name: 上传Linux构建产物
+      if: matrix.platform == 'linux'
+      uses: actions/upload-artifact@v4
       with:
-        path: artifacts
-
-    - name: 创建发布
-      uses: softprops/action-gh-release@v1
-      with:
-        files: artifacts/**/*
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: ${{ matrix.artifact_name }}
+        path: dist/BilibiliTools-Linux-x64
+        retention-days: 30
