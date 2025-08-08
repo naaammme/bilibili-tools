@@ -11,7 +11,7 @@ from datetime import datetime
 import sys
 import time
 
-COOKIE = """SESSDATA=bbd308d2%2C1767006966%2C2aa61%2A72CjBtPtmJxaACKnNOzQ1ABPaYqedhYt2Chom_YmB4GQOnyj_RF0-ZTcL1hARHT3txrJASVjgzS2o2Nkc1blJMalJtVTN4blBLVXhHbUpRRkk5SWt5XzBQY1MwRkpSd1dPZWlGYTlSLUF0czViTS1LallrdEpxN3JZd2FheUdDdlk2S09LcTFfbEdBIIEC;bili_jct=7d5f46bc7f73c55664621c9e02b59374;DedeUserID=3546816815565085;DedeUserID__ckMd5=953bf09dc084ad18;sid=64dzqg5i"""  # 请填入你的cookie
+COOKIE = """"""  # 请填入你的cookie
 MAX_ITEMS = 8
 # 每种类型获取的最大数量
 OUTPUT_DIR = "../output"
