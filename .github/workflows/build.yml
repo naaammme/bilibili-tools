@@ -18,17 +18,17 @@ jobs:
             platform: windows
             arch: x64
             executable_suffix: .exe
-            artifact_name: Bilibili小工具-Windows-x64
+            artifact_name: bilibili-tools-windows-x64
           - os: macos-latest
             platform: macos
             arch: x64
             executable_suffix: ""
-            artifact_name: Bilibili小工具-macOS-x64
+            artifact_name: bilibili-tools-macos-x644
           - os: ubuntu-latest
             platform: linux
             arch: x64
             executable_suffix: ""
-            artifact_name: Bilibili小工具-Linux-x64
+            artifact_name: bilibili-tools-linux-x64
 
     runs-on: ${{ matrix.os }}
 
@@ -157,15 +157,15 @@ jobs:
 
         # 设置平台特定的配置
         if is_windows:
-            exe_name = 'Bilibili小工具'
+            exe_name = 'Bilibili-Tool'
             console_mode = False
             icon_path = 'assets/1.png' if os.path.exists('assets/1.png') else None
         elif is_macos:
-            exe_name = 'Bilibili小工具'
+            exe_name = 'Bilibili-Tool'
             console_mode = False
             icon_path = 'assets/1.png' if os.path.exists('assets/1.png') else None
         else:  # Linux
-            exe_name = 'Bilibili小工具'
+            exe_name = 'Bilibili-Tool'
             console_mode = False
             icon_path = None
 
