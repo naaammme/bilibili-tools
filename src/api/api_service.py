@@ -12,7 +12,7 @@ from ..types import CreateApiServiceError, GetUIDError, RequestFailedError
 
 logger = logging.getLogger(__name__)
 
-UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.2651.86"
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
 
 class UserInfoCache:
     """用户信息缓存类"""
@@ -100,7 +100,7 @@ class ApiService:
     def cffi_session(self) -> cffi_requests.Session:
         """获取或创建curl_Cffi同步会话"""
         if self._cffi_session is None:
-            self._cffi_session = cffi_requests.Session()
+            self._cffi_session = cffi_requests.Session(impersonate="chrome110 ")
             self._cffi_session.headers.update({"User-Agent": UA})
         return self._cffi_session
 
@@ -153,9 +153,9 @@ class ApiService:
                             headers: Optional[Dict] = None) -> Dict[str, Any]:
         """
         这个函数是同步的，它会阻塞，因此必须在后台线程中运行。
-        它完全模仿 aicu_test.py 的行为。
         """
         try:
+
             # 如果是AICU的请求，使用专门的headers
             if headers is None and "aicu.cc" in url:
                 headers = self.get_aicu_headers()
@@ -164,7 +164,8 @@ class ApiService:
                 url,
                 params=params,
                 headers=headers,
-                impersonate="edge99",  # 这是绕过 Cloudflare 的关键
+                impersonate="chrome110",
+                verify=True,
                 timeout=30
             )
             resp.raise_for_status()
@@ -177,10 +178,18 @@ class ApiService:
         """获取AICU专用请求头"""
         return {
             'User-Agent': UA,  # 使用固定的UA，避免同IP多UA被识别
-            'Referer': 'https://www.aicu.cc/',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'zh-CN,zh;q=0.9',
+            'Accept': '*/*',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
+            'Dnt': '1',
             'Origin': 'https://www.aicu.cc',
+            'priority': 'u=1, i',
+            'Sec-Ch-Ua': '"Google Chrome";v="110", "Chromium";v="110", "Not/A)Brand";v="24"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-site',
         }
 
     async def get_cffi_json(self, url: str, params: Optional[Dict] = None,
@@ -298,3 +307,4 @@ class ApiService:
     def clear_user_cache(self):
         """清除用户信息缓存"""
         self.user_cache.clear()
+

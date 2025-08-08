@@ -80,5 +80,5 @@ async def remove_comment(comment: Comment, rpid: int, api_service) -> int:
             raise DeleteCommentError(f"删除评论失败 (rpid: {rpid}): {error_message} (code: {json_res.get('code')})")
     except Exception as e:
         # 抛出异常，以便上层捕获
-        raise DeleteCommentError(f"删除评论时发生网络或未知错误 (rpid: {rpid}): {e}") from e
+        raise DeleteCommentError(f"删除评论时发生网络错误,可能已经被删了 (rpid: {rpid}): {e}") from e
 

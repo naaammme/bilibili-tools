@@ -250,18 +250,7 @@ class UnfollowScreen(QWidget):
         # 返回按钮
         back_btn = QPushButton("← 返回工具选择")
         back_btn.clicked.connect(self.back_to_tools.emit)
-        back_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #7f8c8d;
-                color: white;
-                padding: 8px 15px;
-                border-radius: 6px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #95a5a6;
-            }
-        """)
+        back_btn.setObjectName("secondaryButton")
         toolbar_layout.addWidget(back_btn)
 
         # 标题

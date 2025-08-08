@@ -1,6 +1,6 @@
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Tuple
+from typing import Optional, Dict, Tuple, List
 
 
 class Screen(Enum):
@@ -133,6 +133,7 @@ class AicuDanmuRecovery:
     page: int
     all_count: int
 
+
 @dataclass
 class FetchProgressState:
     liked_data: Tuple[Dict[int, Notify], Dict[int, Comment], Dict[int, Danmu]] = field(default_factory=lambda: ({}, {}, {}))
@@ -154,3 +155,36 @@ class FetchProgressState:
     aicu_danmu_recovery: Optional[AicuDanmuRecovery] = None
 
     aicu_enabled_last_run: bool = False
+
+@dataclass
+class RecordedComment:
+    """从JS脚本记录的评论"""
+    text: str
+    time: str
+    timestamp: int
+    rpid: Optional[int] = None
+    status: str = ""
+    images: list = field(default_factory=list)
+    video_info: Optional[Dict] = None
+    video_time: int = 0
+    page_type: str = ""
+    url: str = ""
+
+@dataclass
+class RecordedDanmu:
+    """从JS脚本记录的弹幕"""
+    text: str
+    time: str
+    timestamp: int
+    method: str = ""
+    video_info: Optional[Dict] = None
+    video_time: int = 0
+    page_type: str = ""
+
+@dataclass
+class ImportedData:
+    """导入的数据"""
+    export_time: str
+    comments: List[RecordedComment] = field(default_factory=list)
+    danmaku: List[RecordedDanmu] = field(default_factory=list)
+    summary: Optional[Dict] = None

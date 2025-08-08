@@ -11,7 +11,7 @@ from datetime import datetime
 import sys
 import time
 
-COOKIE = """    """  # 请填入你的cookie
+COOKIE = """SESSDATA=bbd308d2%2C1767006966%2C2aa61%2A72CjBtPtmJxaACKnNOzQ1ABPaYqedhYt2Chom_YmB4GQOnyj_RF0-ZTcL1hARHT3txrJASVjgzS2o2Nkc1blJMalJtVTN4blBLVXhHbUpRRkk5SWt5XzBQY1MwRkpSd1dPZWlGYTlSLUF0czViTS1LallrdEpxN3JZd2FheUdDdlk2S09LcTFfbEdBIIEC;bili_jct=7d5f46bc7f73c55664621c9e02b59374;DedeUserID=3546816815565085;DedeUserID__ckMd5=953bf09dc084ad18;sid=64dzqg5i"""  # 请填入你的cookie
 MAX_ITEMS = 8
 # 每种类型获取的最大数量
 OUTPUT_DIR = "../output"
@@ -96,7 +96,7 @@ async def main():
     print("B站API数据获取工具\n")
 
     # 检查cookie
-    if not COOKIE or COOKIE == "这里填入你的完整cookie":
+    if not COOKIE or COOKIE == "":
         print("错误：请先在脚本中填入你的完整cookie")
         input("按Enter键退出...")
         return
@@ -143,45 +143,6 @@ async def main():
             input("按Enter键退出...")
             return
 
-        # 1. 获取点赞数据
-        print("\n正在获取点赞数据...")
-        liked_data = []
-
-        try:
-            # 点赞数据的分页逻辑
-            cursor_id = None
-            cursor_time = None
-            page = 1
-
-            while True:
-                if cursor_id is None and cursor_time is None:
-                    url = "https://api.bilibili.com/x/msgfeed/like?platform=web&build=0&mobi_app=web"
-                else:
-                    url = f"https://api.bilibili.com/x/msgfeed/like?platform=web&build=0&mobi_app=web&id={cursor_id}&like_time={cursor_time}"
-
-                data = await api_service.fetch_data(url)
-                liked_data.append(data)
-
-                items = data.get('data', {}).get('total', {}).get('items', [])
-                cursor = data.get('data', {}).get('total', {}).get('cursor', {})
-
-                print(f"✓ 第 {page} 页获取到 {len(items)} 条点赞数据")
-
-                if not cursor or cursor.get('is_end', True):
-                    break
-
-                cursor_id = cursor.get('id')
-                cursor_time = cursor.get('time')
-                page += 1
-                await asyncio.sleep(1)  # 避免请求过快
-
-        except Exception as e:
-            print(f"✗ 获取点赞数据失败: {e}")
-
-        if liked_data:
-            with open(os.path.join(OUTPUT_DIR, "liked_raw.json"), "w", encoding="utf-8") as f:
-                json.dump(liked_data, f, ensure_ascii=False, indent=2)
-            print(f"✓ 点赞数据已保存")
 
         # 2. 获取回复数据
         print("\n正在获取回复数据...")

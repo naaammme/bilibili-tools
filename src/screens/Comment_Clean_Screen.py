@@ -2,24 +2,28 @@ import asyncio
 import logging
 import threading
 import time
-
+import collections
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QSplitter, QPushButton, QLabel, QCheckBox,
     QScrollArea, QLineEdit, QSpinBox, QMessageBox,
-    QProgressBar, QStackedWidget, QTextEdit, QTableWidgetItem, QAbstractItemView, QTableWidget, QHeaderView
+    QProgressBar, QStackedWidget, QTextEdit, QTableWidgetItem, QAbstractItemView, QTableWidget, QHeaderView, QFrame
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QThread, pyqtSlot, QUrl, QTimer
+from PyQt6.QtCore import Qt, pyqtSignal, QThread, pyqtSlot, QUrl, QTimer,QObject
 from PyQt6.QtGui import QDesktopServices
 from typing import Optional, Dict, Callable, List, Union
 
-
+try:
+    from ..api.drissionpage_service import DrissionPageWindow
+    DRISSION_SERVICE_AVAILABLE = True
+except ImportError:
+    DRISSION_SERVICE_AVAILABLE = False
 
 from ..types import Screen, Comment, Danmu, Notify, FetchProgressState, ActivityInfo
 from ..api.api_service import ApiService
 from ..api.notify import fetch as fetch_data
-from ..utils import fuzzy_search
+from ..utils import fuzzy_search, ClickTracker
 
 from ..database.models import CommentRecord, DanmuRecord, NotifyRecord
 
@@ -27,6 +31,27 @@ from ..database.models import CommentRecord, DanmuRecord, NotifyRecord
 
 logger = logging.getLogger(__name__)
 
+class LogHandler(logging.Handler, QObject):
+    """自定义日志处理器，用于将日志发送到UI"""
+    log_signal = pyqtSignal(str)
+
+    def __init__(self, max_logs=50):
+        logging.Handler.__init__(self)
+        QObject.__init__(self)
+        self.logs = collections.deque(maxlen=max_logs)
+
+    def emit(self, record):
+        msg = self.format(record)
+        if record.levelno >= logging.ERROR:  # ERROR
+            msg = f'<span style="color: #ff4444;">{msg}</span>'
+        elif record.levelno >= logging.WARNING:  # WARNING
+            msg = f'<span style="color: #ff9933;">{msg}</span>'
+        elif record.levelno >= logging.INFO:  # INFO
+            msg = f'<span style="color: #66ccff;">{msg}</span>'
+        else:  # DEBUG
+            msg = f'<span style="color: #888888;">{msg}</span>'
+        self.logs.append(msg)
+        self.log_signal.emit(msg)
 class FetchThread(QThread):
     """用于获取数据的线程"""
     finished = pyqtSignal(object)
@@ -212,6 +237,7 @@ class ItemViewer(QWidget):
         self.items: Dict[int, any] = {}
         self.checkboxes: Dict[int, QCheckBox] = {}
         self.is_deleting = False
+
         self.init_ui()
 
     def init_ui(self):
@@ -253,8 +279,9 @@ class ItemViewer(QWidget):
 
         # 双击事件
         self.table.cellDoubleClicked.connect(self.on_cell_double_clicked)
-        self.table.itemChanged.connect(self.on_item_changed)
 
+        # 添加单击事件
+        self.table.cellClicked.connect(self.on_cell_clicked)
         # 设置objectName
         self.table.setObjectName("commentDataTable")
 
@@ -287,8 +314,24 @@ class ItemViewer(QWidget):
 
     def filter_items(self):
         search_text = self.search_input.text().strip()
-        self.items = {k: v for k, v in self.all_items.items() if
-                      not search_text or fuzzy_search(search_text, v.content)}
+        if not search_text:
+            self.items = self.all_items.copy()
+        else:
+            # 创建一个包含来源标识的搜索文本
+            self.items = {}
+            for k, v in self.all_items.items():
+                # 构建包含来源的完整文本
+                if self.item_type == "弹幕" and hasattr(v, 'source'):
+                    search_content = f"[{v.source.upper()}] {v.content}"
+                elif self.item_type == "评论":
+                    source = getattr(v, 'source', 'bilibili').upper()
+                    search_content = f"[{source}] {v.content}"
+                else:
+                    search_content = v.content
+
+                # 使用 fuzzy_search 进行搜索
+                if fuzzy_search(search_text, search_content):
+                    self.items[k] = v
         self.refresh_display()
 
     def refresh_display(self):
@@ -319,8 +362,12 @@ class ItemViewer(QWidget):
                 if len(content_display) > 200:  # 限制显示长度
                     content_display = content_display[:200] + "..."
 
-                if self.item_type == "弹幕" and hasattr(item, 'source'):
-                    content_display = f"[{item.source.upper()}] {content_display}"
+                if hasattr(item, 'source'):
+                    source = item.source.upper()
+                    content_display = f"[{source}] {content_display}"
+                elif self.item_type == "评论":
+                    # 如果没有source属性，默认为BILIBILI
+                    content_display = f"[BILIBILI] {content_display}"
 
                 content_item = QTableWidgetItem(content_display)
                 content_item.setData(Qt.ItemDataRole.UserRole, (item_id, item))
@@ -342,12 +389,17 @@ class ItemViewer(QWidget):
                 item_id, item = content_item.data(Qt.ItemDataRole.UserRole)
                 self.handle_double_click(item_id, item)
 
-    def on_item_changed(self, item):
-        """处理表格项改变事件"""
-        if item.column() == 0:  # 只处理复选框列
-            item_id = item.data(Qt.ItemDataRole.UserRole)
+    def on_cell_clicked(self, row, column):
+        """处理单元格单击事件 - 点击任意位置切换选中状态"""
+        checkbox_item = self.table.item(row, 0)
+        if checkbox_item:
+            item_id = checkbox_item.data(Qt.ItemDataRole.UserRole)
             if item_id:
-                is_checked = item.checkState() == Qt.CheckState.Checked
+                current_state = checkbox_item.checkState()
+                new_state = Qt.CheckState.Unchecked if current_state == Qt.CheckState.Checked else Qt.CheckState.Checked
+                checkbox_item.setCheckState(new_state)
+                # 直接调用 toggle_item 更新数据
+                is_checked = new_state == Qt.CheckState.Checked
                 self.toggle_item(item_id, is_checked)
 
     def handle_double_click(self, item_id: int, item):
@@ -400,24 +452,17 @@ class ItemViewer(QWidget):
             from PyQt6.QtCore import QUrl
 
             if hasattr(danmu_item, 'source') and danmu_item.source == "aicu":
-                # AICU来源的弹幕，跳转到AICU网站
-                # 需要通过parent获取api_service
-                main_screen = self.parent()
-                while main_screen and not hasattr(main_screen, 'api_service'):
-                    main_screen = main_screen.parent()
-
-                if main_screen and hasattr(main_screen, 'api_service'):
-                    uid, _, _ = main_screen.api_service.get_cached_user_info()
-                    if uid:
-                        aicu_url = f"https://www.aicu.cc/videodanmu.html?uid={uid}"
-                        logger.info(f"打开AICU弹幕链接: {aicu_url}")
-                        QDesktopServices.openUrl(QUrl(aicu_url))
-                    else:
-                        from PyQt6.QtWidgets import QMessageBox
-                        QMessageBox.warning(self, "错误", "无法获取用户UID")
+                # AICU来源的弹幕，构造B站视频链接
+                # 对于AICU弹幕，cid字段实际上是视频的oid(av号)
+                if hasattr(danmu_item, 'cid') and danmu_item.cid:
+                    av_number = danmu_item.cid
+                    # 构造B站视频链接，带dmid参数
+                    video_url = f"https://www.bilibili.com/video/av{av_number}/?dmid={dmid}"
+                    logger.info(f"打开B站视频链接: {video_url}")
+                    QDesktopServices.openUrl(QUrl(video_url))
                 else:
                     from PyQt6.QtWidgets import QMessageBox
-                    QMessageBox.warning(self, "错误", "无法获取API服务")
+                    QMessageBox.warning(self, "错误", "无法获取视频信息")
             else:
                 # B站官方来源的弹幕
                 if hasattr(danmu_item, 'video_url') and danmu_item.video_url:
@@ -494,16 +539,15 @@ class ItemViewer(QWidget):
                 QMessageBox.critical(self, "错误", "未能获取到用户UID，无法生成删除链接。")
                 return
 
-            url = f"https://www.aicu.cc/videodanmu.html?uid={uid}"
-
             msg_box = QMessageBox(self)
             msg_box.setIcon(QMessageBox.Icon.Information)
             msg_box.setWindowTitle("无法直接删除弹幕")
             msg_box.setTextFormat(Qt.TextFormat.RichText)
             msg_box.setText(f"由于B站官方API限制，本工具无法直接删除您的弹幕。<br><br>"
                             f"如果只需要删除弹幕通知,请在通知窗口搜索关键词删除<br><br>"
-                            f"如需删除弹幕本身,请点击链接跳转至第三方网站手动删除：<br>"
-                            f"<a href='{url}'>{url}</a>")
+                            f"如需删除弹幕本身,请双击弹幕跳转原视频并使用手机<br><br>"
+                            f"找到对应视频和弹幕发送时间进行手动删除  <br>"
+                            )
             msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
             msg_box.exec()
 
@@ -571,7 +615,7 @@ class CommentCleanScreen(QWidget):
     def __init__(self, api_service: ApiService, aicu_state: bool):
         super().__init__()
         self.api_service, self.aicu_state = api_service, aicu_state
-
+        self.egg_click_tracker = ClickTracker(target_clicks=1)
         try:
             from ..database import DatabaseManager, SyncManager
             self.db_manager = DatabaseManager()
@@ -587,6 +631,7 @@ class CommentCleanScreen(QWidget):
         self.progress_state = FetchProgressState()
         self.delete_threads = {}
         self.all_comments, self.all_danmus, self.all_notifies = {}, {}, {}
+        self.detail_windows = []
         # 添加状态变量
         self.is_cascade_delete_enabled = True
         self.is_delete_db_enabled = False
@@ -600,6 +645,13 @@ class CommentCleanScreen(QWidget):
             "aicu_danmus": {"count": 0, "speed": 0.0, "active": False}
         }
         self.completed_stages = set()
+        # 初始化日志处理器
+        self.log_handler = LogHandler(max_logs=50)
+        self.log_handler.setFormatter(
+            logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S'))
+        logger.addHandler(self.log_handler)
+        aicu_logger = logging.getLogger('src.api.aicu')
+        aicu_logger.addHandler(self.log_handler)
         self.init_ui()
         self.show_empty_state()
 
@@ -609,7 +661,11 @@ class CommentCleanScreen(QWidget):
         self._is_closing = False
 
         self._is_closing = False
-
+    def handle_egg_button_click(self):
+        if self.egg_click_tracker.click():
+            logger.info("打开备用API窗口...")
+            self.open_drission_window()
+        pass
     def handle_comment_double_click_direct(self, comment_id: int, comment):
         """直接处理评论双击（绕过信号）"""
         logger.info(f"评论双击（直接调用）: comment_id={comment_id}, oid={comment.oid}, type={comment.type}")
@@ -620,9 +676,13 @@ class CommentCleanScreen(QWidget):
             return
 
         # 创建并显示详情窗口
+        # 创建并显示详情窗口
         try:
+            # 检查窗口数量限制
+            self._manage_detail_windows()
+
             from .comment_detail_screen import CommentDetailScreen
-            self.detail_window = CommentDetailScreen(
+            detail_window = CommentDetailScreen(
                 self.api_service,
                 comment_id,
                 comment.oid,
@@ -630,15 +690,33 @@ class CommentCleanScreen(QWidget):
                 comment_data=comment
             )
 
-            self.detail_window.setWindowTitle(f"评论详情 - ID: {comment_id}")
-            self.detail_window.resize(800, 600)
-            self.detail_window.show()
+            detail_window.setWindowTitle(f"评论详情 - ID: {comment_id}")
+            detail_window.resize(800, 600)
+
+            # 连接窗口关闭信号
+            detail_window.destroyed.connect(
+                lambda: self.detail_windows.remove(detail_window) if detail_window in self.detail_windows else None)
+
+            self.detail_windows.append(detail_window)
+            detail_window.show()
+
+            logger.info(f"打开评论详情窗口 (当前窗口数: {len(self.detail_windows)})")
         except Exception as e:
             logger.error(f"打开评论详情失败: {e}")
             import traceback
             traceback.print_exc()
 
+    def _manage_detail_windows(self):
+        """管理详情窗口数量，最多保留3个"""
+        # 清理已关闭的窗口引用
+        self.detail_windows = [w for w in self.detail_windows if w and not w.isHidden()]
 
+        # 如果窗口数量达到3个，关闭最早的窗口
+        while len(self.detail_windows) >= 3:
+            oldest_window = self.detail_windows.pop(0)
+            if oldest_window:
+                oldest_window.close()
+                logger.info("关闭最早的评论详情窗口以保持窗口数量限制")
     def connect_double_click_signals(self):
         """连接双击信号"""
         # 连接评论双击信号
@@ -715,27 +793,23 @@ class CommentCleanScreen(QWidget):
         # 返回按钮
         back_btn = QPushButton("← 返回工具选择")
         back_btn.clicked.connect(self.safe_back_to_tools)
-        back_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #7f8c8d;
-                color: white;
-                border: none;
-                padding: 8px 15px;
-                border-radius: 6px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #95a5a6;
-            }
-        """)
+        back_btn.setObjectName("secondaryButton")
         toolbar_layout.addWidget(back_btn)
 
         # 标题
         title_label = QLabel("评论清理工具")
         title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #ecf0f1;")
         toolbar_layout.addWidget(title_label)
-
         toolbar_layout.addStretch()
+        if DRISSION_SERVICE_AVAILABLE:
+            self.backup_api_btn = QPushButton("备用API")
+            self.backup_api_btn.setToolTip("打开备用API")
+            self.backup_api_btn.setObjectName("primaryButton")
+            self.backup_api_btn.setFixedSize(80, 30)
+            self.backup_api_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.backup_api_btn.clicked.connect(self.handle_egg_button_click)
+            toolbar_layout.addWidget(self.backup_api_btn)
+
         self.main_layout.addLayout(toolbar_layout)
 
         self.stacked_widget = QStackedWidget(); self.main_layout.addWidget(self.stacked_widget)
@@ -790,88 +864,33 @@ class CommentCleanScreen(QWidget):
             db_layout = QHBoxLayout()
 
             # 从数据库加载按钮
-            self.load_from_db_btn = QPushButton("📁 从数据库加载")
+            self.load_from_db_btn = QPushButton("从数据库加载")
             self.load_from_db_btn.clicked.connect(self.load_from_database)
-            self.load_from_db_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #27ae60;
-                    color: white;
-                    padding: 8px 15px;
-                    border-radius: 6px;
-                    font-size: 13px;
-                }
-                QPushButton:hover {
-                    background-color: #2ecc71;
-                }
-            """)
+            self.load_from_db_btn.setObjectName("primaryButton")
             db_layout.addWidget(self.load_from_db_btn)
 
             # 获取全量数据按钮
-            self.fetch_all_btn = QPushButton("🔄 获取全部数据")
+            self.fetch_all_btn = QPushButton("获取全部数据")
             self.fetch_all_btn.clicked.connect(self.fetch_all_data)
-            self.fetch_all_btn.setStyleSheet("""
-                 QPushButton {
-                     background-color: #3498db;
-                     color: white;
-                     padding: 8px 15px;
-                     border-radius: 6px;
-                     font-size: 13px;
-                 }
-                 QPushButton:hover {
-                     background-color: #2980b9;
-                 }
-             """)
+            self.fetch_all_btn.setObjectName("primaryButton")
             db_layout.addWidget(self.fetch_all_btn)
 
             # 获取新数据按钮
-            self.fetch_new_btn = QPushButton("🔄 获取新数据")
+            self.fetch_new_btn = QPushButton("获取新数据")
             self.fetch_new_btn.clicked.connect(self.fetch_new_data)
-            self.fetch_new_btn.setStyleSheet("""
-                   QPushButton {
-                       background-color: #f39c12;
-                       color: white;
-                       padding: 8px 15px;
-                       border-radius: 6px;
-                       font-size: 13px;
-                   }
-                   QPushButton:hover {
-                       background-color: #e67e22;
-                   }
-               """)
+            self.fetch_new_btn.setObjectName("primaryButton")
             db_layout.addWidget(self.fetch_new_btn)
 
             # 保存到数据库按钮
-            self.save_to_db_btn = QPushButton("💾 保存到数据库")
+            self.save_to_db_btn = QPushButton("保存到数据库")
             self.save_to_db_btn.clicked.connect(self.save_to_database)
-            self.save_to_db_btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #8e44ad;
-                        color: white;
-                        padding: 8px 15px;
-                        border-radius: 6px;
-                        font-size: 13px;
-                    }
-                    QPushButton:hover {
-                        background-color: #9b59b6;
-                    }
-                """)
+            self.save_to_db_btn.setObjectName("primaryButton")
             db_layout.addWidget(self.save_to_db_btn)
 
             # 删除数据库数据按钮
-            self.delete_db_btn = QPushButton("🗑️ 清空数据库")
+            self.delete_db_btn = QPushButton(" 清空数据库")
             self.delete_db_btn.clicked.connect(self.delete_database_data)
-            self.delete_db_btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #e74c3c;
-                        color: white;
-                        padding: 8px 15px;
-                        border-radius: 6px;
-                        font-size: 13px;
-                    }
-                    QPushButton:hover {
-                        background-color: #c0392b;
-                    }
-                """)
+            self.delete_db_btn.setObjectName("dangerButton")
             db_layout.addWidget(self.delete_db_btn)
 
             db_layout.addStretch()
@@ -896,9 +915,107 @@ class CommentCleanScreen(QWidget):
 
         splitter.setSizes([350, 350, 350])
         content_layout.addWidget(splitter)
+        # 添加日志显示区域
+        log_frame = QFrame()
+        log_frame.setObjectName("logFrame")
+        log_frame.setMaximumHeight(130)
+        log_layout = QVBoxLayout(log_frame)
+        log_layout.setContentsMargins(10, 10, 10, 10)
 
+        # 日志文本显示
+        self.log_display = QTextEdit()
+        self.log_display.setReadOnly(True)
+        self.log_display.setObjectName("logDisplay")
+        self.log_display.setStyleSheet("""
+            QTextEdit#logDisplay {
+                background-color: rgba(30, 41, 59, 0.8);
+                border: 1px solid #475569;
+                border-radius: 8px;
+                color: #e2e8f0;
+                font-family: Consolas, Monaco, monospace;
+                font-size: 12px;
+                padding: 5px;
+            }
+        """)
+        log_layout.addWidget(self.log_display)
+
+        content_layout.addWidget(log_frame)
+
+        self.log_handler.log_signal.connect(self.append_log)
         self.stacked_widget.addWidget(self.main_content_widget)
 
+    def open_drission_window(self):
+        """打开DrissionPage备用API窗口"""
+        if not DRISSION_SERVICE_AVAILABLE:
+            QMessageBox.warning(self, "功能不可用", "DrissionPage服务不可用,请先下载chrome浏览器")
+            return
+
+        try:
+            # 获取用户信息
+            uid, username, _ = self.api_service.get_cached_user_info()
+            if not uid:
+                QMessageBox.warning(self, "错误", "请先登录")
+                return
+
+            # 打开DrissionPage窗口
+            drission_window = DrissionPageWindow(uid, username, self)
+            drission_window.data_imported.connect(self.import_drission_data)
+            drission_window.show()
+
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"无法打开备用API: {e}")
+
+    def import_drission_data(self, comments_data, danmus_data):
+        """处理从DrissionPage导入的数据（已经是标准格式的字典）"""
+        try:
+            # 记录导入前的数量
+            old_comment_count = len(self.all_comments)
+            old_danmu_count = len(self.all_danmus)
+
+            # 直接合并数据（现在comments_data和danmus_data都是字典）
+            self.all_comments.update(comments_data)
+            self.all_danmus.update(danmus_data)
+
+            # 更新UI
+            self.comment_viewer.set_items(self.all_comments)
+            self.danmu_viewer.set_items(self.all_danmus)
+
+            # 计算新增数量
+            new_comment_count = len(self.all_comments) - old_comment_count
+            new_danmu_count = len(self.all_danmus) - old_danmu_count
+
+            # 显示结果
+            QMessageBox.information(
+                self, "导入成功",
+                f"成功导入:\n新增评论: {new_comment_count} 条\n新增弹幕: {new_danmu_count} 条\n\n"
+                f"当前总计:\n评论: {len(self.all_comments)} 条\n弹幕: {len(self.all_danmus)} 条"
+            )
+
+            logger.info(f"DrissionPage数据导入成功: 新增评论 {new_comment_count}，新增弹幕 {new_danmu_count}")
+
+            # 自动保存到数据库
+            if self.database_enabled and (new_comment_count > 0 or new_danmu_count > 0):
+                try:
+                    uid, _, _ = self.api_service.get_cached_user_info()
+                    if uid:
+                        self.sync_manager.save_to_database(uid, self.all_comments, self.all_danmus, self.all_notifies)
+                        logger.info("导入的数据已自动保存到数据库")
+                except Exception as e:
+                    logger.warning(f"自动保存导入数据到数据库失败: {e}")
+
+        except Exception as e:
+            logger.error(f"导入DrissionPage数据失败: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "导入失败", f"数据导入失败: {e}")
+
+    @pyqtSlot(str)
+    def append_log(self, message):
+        """追加日志到显示区域"""
+        self.log_display.append(message)
+        # 自动滚动到底部
+        scrollbar = self.log_display.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
     # 删除数据库数据的方法
     def delete_database_data(self):
         """删除当前账号的数据库数据"""
@@ -1100,7 +1217,7 @@ class CommentCleanScreen(QWidget):
             self.comment_viewer.set_items(self.all_comments)
             self.danmu_viewer.set_items(self.all_danmus)
             self.notify_viewer.set_items(self.all_notifies)
-            logger.info(f"进程已完成. C:{len(self.all_comments)}, D:{len(self.all_danmus)}, N:{len(self.all_notifies)}")
+            logger.info(f"进程已完成. 评论:{len(self.all_comments)}, 弹幕:{len(self.all_danmus)}, 通知:{len(self.all_notifies)}")
 
             # 显示最终统计信息
             final_stats = []
@@ -1430,13 +1547,13 @@ class CommentCleanScreen(QWidget):
         else:
             QMessageBox.information(self, "增量更新完成", "没有发现新数据")
 
-        logger.info(f"增量获取完成，新数据: C:{len(new_comments)}, D:{len(new_danmus)}, N:{len(new_notifies)}")
+        logger.info(f"增量获取完成，新数据: 评论:{len(new_comments)}, 弹幕:{len(new_danmus)}, 通知:{len(new_notifies)}")
 
 
     def closeEvent(self, event):
         """窗口关闭时的清理操作"""
         self._is_closing = True
-
+        logger.removeHandler(self.log_handler)
         # 打破循环引用
         if hasattr(self, 'comment_viewer'):
             self.comment_viewer.parent_screen = None
@@ -1444,7 +1561,10 @@ class CommentCleanScreen(QWidget):
             self.danmu_viewer.parent_screen = None
         if hasattr(self, 'notify_viewer'):
             self.notify_viewer.parent_screen = None
-
+        for window in self.detail_windows:
+            if window and not window.isHidden():
+                window.close()
+        self.detail_windows.clear()
         # 停止线程
         if hasattr(self, 'fetch_thread') and self.fetch_thread and self.fetch_thread.isRunning():
             self.fetch_thread.stop()
@@ -1581,8 +1701,8 @@ class LoginCacheThread(QThread):
             self.cache_completed.emit()
 
 
-# 这个MainWindow类应该已经不再需要了，因为我们现在直接使用ImprovedToolSelectionScreen
-# 但为了兼容，我们暂时保留它
+# 这个MainWindow类应该已经不再需要了，因为现在直接使用ImprovedToolSelectionScreen
+# 但为了兼容，还是暂时保留它
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -2219,7 +2339,7 @@ class ClickableTextEdit(QTextEdit):
 
 class DatabaseLoadThread(QThread):
     """数据库加载线程"""
-    data_loaded = pyqtSignal(object, object, object)  # comments, danmus, notifies
+    data_loaded = pyqtSignal(object, object, object)
     error = pyqtSignal(str)
     progress = pyqtSignal(str)
 

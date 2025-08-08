@@ -2,15 +2,14 @@ import logging
 import requests
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QLabel, QFrame,  QMessageBox, QDialog,
-    QMenuBar, QMainWindow, QMenu, QListWidget, QListWidgetItem
+    QLabel, QFrame, QMessageBox, QDialog,
+    QMainWindow, QListWidget, QListWidgetItem,
+    QStackedWidget, QScrollArea
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QThread, pyqtSlot, QTimer
-from PyQt6.QtGui import QFont, QPixmap, QIcon, QAction
+from PyQt6.QtCore import Qt, pyqtSignal, QThread, QTimer, QPropertyAnimation, QEasingCurve, QUrl
+from PyQt6.QtGui import QAction, QDesktopServices
 from ..api.api_service import ApiService
-from ..style import get_resource_path
 logger = logging.getLogger(__name__)
-
 
 
 class UsernameThread(QThread):
@@ -26,6 +25,7 @@ class UsernameThread(QThread):
 
     def stop(self):
         self._is_running = False
+        self.requestInterruption()
 
     def run(self):
         if not self._is_running:
@@ -296,6 +296,7 @@ class SimpleLoginDialog(QDialog):
         # 如果有QR屏幕，先停止其线程
         if self.qr_screen:
             self.qr_screen.stop_all_threads()
+            self.qr_screen.deleteLater()
 
         while self.content_layout.count():
             child = self.content_layout.takeAt(0)
@@ -316,6 +317,80 @@ class SimpleLoginDialog(QDialog):
         super().closeEvent(event)
 
 
+class ToolNavigationItem(QWidget):
+    """侧边栏工具导航项"""
+    clicked = pyqtSignal()
+
+    def __init__(self, icon: str, title: str, description: str, enabled: bool = True):
+        super().__init__()
+        self.title = title
+        self.enabled = enabled
+        self.selected = False
+        self.init_ui(icon, title, description)
+
+    def init_ui(self, icon: str, title: str, description: str):
+        self.setFixedHeight(80)
+        self.setCursor(Qt.CursorShape.PointingHandCursor if self.enabled else Qt.CursorShape.ForbiddenCursor)
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(15, 10, 15, 10)
+
+
+        # 文本区域
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+
+        # 标题
+        self.title_label = QLabel(title)
+        self.title_label.setObjectName("navItemTitle")
+        self.title_label.setProperty("enabled", "true" if self.enabled else "false")
+        text_layout.addWidget(self.title_label)
+
+        # 描述
+        desc_label = QLabel(description)
+        desc_label.setObjectName("navItemDesc")
+        desc_label.setProperty("enabled", "true" if self.enabled else "false")
+        desc_label.setWordWrap(True)
+        text_layout.addWidget(desc_label)
+
+        layout.addLayout(text_layout)
+        layout.addStretch()
+
+        # 状态指示器
+        if not self.enabled:
+            lock_label = QLabel("🔒")
+            lock_label.setStyleSheet("font-size: 20px;")
+            layout.addWidget(lock_label)
+
+        self.setLayout(layout)
+        self.update_style()
+
+    def update_style(self):
+        if self.selected and self.enabled:
+            self.setObjectName("navItemSelected")
+        elif self.enabled:
+            self.setObjectName("navItem")
+        else:
+            self.setObjectName("navItemDisabled")
+        self.setStyleSheet(self.styleSheet())  # 触发样式更新
+
+    def set_selected(self, selected: bool):
+        self.selected = selected
+        self.update_style()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self.enabled:
+            self.clicked.emit()
+
+    def enterEvent(self, event):
+        if self.enabled and not self.selected:
+            self.setObjectName("navItemHover")
+            self.setStyleSheet(self.styleSheet())
+
+    def leaveEvent(self, event):
+        self.update_style()
+
+
 class ToolSelectionScreen(QMainWindow):
 
     # 信号定义
@@ -323,6 +398,8 @@ class ToolSelectionScreen(QMainWindow):
     open_unfollow_tool = pyqtSignal()
     open_comment_stats_tool = pyqtSignal()
     open_message_tool = pyqtSignal()
+    open_record_tool = pyqtSignal()
+    open_unlike_tool = pyqtSignal()
 
     def __init__(self, api_service: ApiService, aicu_state: bool):
         super().__init__()
@@ -330,6 +407,7 @@ class ToolSelectionScreen(QMainWindow):
         self.aicu_state = aicu_state
         self.username = "未登录"
         self.username_thread = None  # 保存线程引用
+        self.tool_items = []  # 保存工具导航项引用
 
         # 初始化账号管理器
         try:
@@ -353,6 +431,10 @@ class ToolSelectionScreen(QMainWindow):
 
     def init_ui(self):
         """初始化UI"""
+        # 应用样式表（包含侧边栏样式）
+        from ..style import get_stylesheet
+        self.setStyleSheet(get_stylesheet())
+
         # 创建菜单栏
         self.create_menu_bar()
 
@@ -360,18 +442,16 @@ class ToolSelectionScreen(QMainWindow):
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
 
-        main_layout = QVBoxLayout(main_widget)
-        main_layout.setContentsMargins(40, 30, 40, 30)
-        main_layout.setSpacing(25)
+        # 主布局 - 水平布局
+        main_layout = QHBoxLayout(main_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-        # 顶部区域
-        self.create_header_area(main_layout)
+        # 创建侧边栏
+        self.create_sidebar(main_layout)
 
-        # 工具区域
-        self.create_tools_area(main_layout)
-
-        # 底部区域
-        self.create_footer_area(main_layout)
+        # 创建内容区域
+        self.create_content_area(main_layout)
 
         # 状态栏
         status_message = f"已登录: {self.username}" if self.api_service else "未登录"
@@ -399,7 +479,7 @@ class ToolSelectionScreen(QMainWindow):
 
             # 账号管理子菜单
             if self.account_manager and self.account_manager.has_accounts():
-                manage_action = QAction('   管理账号...', self)
+                manage_action = QAction('管理账号', self)
                 manage_action.triggered.connect(self.show_account_management)
                 account_menu.addAction(manage_action)
 
@@ -424,7 +504,7 @@ class ToolSelectionScreen(QMainWindow):
         # 设置菜单
         settings_menu = menubar.addMenu('设置')
 
-        aicu_action = QAction('AICU数据源(第三方数据源,会披露您的uid)', self)
+        aicu_action = QAction('AICU数据源(使用前请使用手机热点网络,否则会风控!!!)', self)
         aicu_action.setCheckable(True)
         aicu_action.setChecked(self.aicu_state)
         aicu_action.triggered.connect(self.toggle_aicu_state)
@@ -434,6 +514,295 @@ class ToolSelectionScreen(QMainWindow):
         clear_cache_action = QAction('清除本地缓存', self)
         clear_cache_action.triggered.connect(self.clear_local_cache)
         settings_menu.addAction(clear_cache_action)
+
+        script_action = QAction('安装评论记录脚本', self)
+        script_action.triggered.connect(
+            lambda: QDesktopServices.openUrl(QUrl("https://scriptcat.org/zh-CN/users/174969")))
+        settings_menu.addAction(script_action)
+
+
+    def create_sidebar(self, main_layout):
+        """创建侧边栏"""
+        # 侧边栏容器
+        self.sidebar_container = QWidget()
+        self.sidebar_container.setObjectName("sidebarContainer")
+        self.sidebar_container.setFixedWidth(300)
+
+        sidebar_layout = QVBoxLayout(self.sidebar_container)
+        sidebar_layout.setContentsMargins(0, 0, 0, 0)
+        sidebar_layout.setSpacing(0)
+
+        # 侧边栏头部
+        header_widget = QWidget()
+        header_widget.setObjectName("sidebarHeader")
+        header_widget.setFixedHeight(80)
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(20, 0, 20, 0)
+
+        # Logo和标题
+        logo_label = QLabel("📺")
+        logo_label.setStyleSheet("font-size: 32px;")
+        header_layout.addWidget(logo_label)
+
+        title_label = QLabel("B站工具集")
+        title_label.setObjectName("sidebarTitle")
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+
+        sidebar_layout.addWidget(header_widget)
+
+        # 分割线
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setObjectName("sidebarSeparator")
+        sidebar_layout.addWidget(separator)
+
+        # 工具列表滚动区域
+        scroll_area = QScrollArea()
+        scroll_area.setObjectName("sidebarScroll")
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        # 工具列表容器
+        tools_widget = QWidget()
+        tools_layout = QVBoxLayout(tools_widget)
+        tools_layout.setContentsMargins(0, 10, 0, 10)
+        tools_layout.setSpacing(5)
+
+        # 工具列表
+        tools = [
+            {
+                "icon": "",
+                "title": "评论清理工具",
+                "description": "清理评论、弹幕和通知",
+                "enabled": bool(self.api_service),
+                "callback": self.open_comment_tool.emit
+            },
+            {
+                "icon": "",
+                "title": "批量取关工具",
+                "description": "管理关注的UP主",
+                "enabled": bool(self.api_service),
+                "callback": self.open_unfollow_tool.emit
+            },
+            {
+                "icon": "",
+                "title": "批量取消点赞",
+                "description": "批量取消视频点赞",
+                "enabled": bool(self.api_service),
+                "callback": self.open_unlike_tool.emit
+            },
+            {
+                "icon": "",
+                "title": "数据统计中心",
+                "description": "查看各项数据统计",
+                "enabled": bool(self.api_service),
+                "callback": self.open_comment_stats_tool.emit
+            },
+            {
+                "icon": "",
+                "title": "私信管理工具",
+                "description": "管理B站私信",
+                "enabled": bool(self.api_service),
+                "callback": self.open_message_tool.emit
+            },
+            {
+                "icon": "",
+                "title": "评论弹幕记录",
+                "description": "记录最新发的评论弹幕",
+                "enabled": bool(self.api_service),
+                "callback": self.open_record_tool.emit
+            }
+        ]
+
+
+        for i, tool in enumerate(tools):
+            item = ToolNavigationItem(
+                tool["icon"],
+                tool["title"],
+                tool["description"],
+                tool["enabled"]
+            )
+
+            if tool["enabled"]:
+                item.clicked.connect(lambda checked=False, idx=i: self.on_tool_selected(idx))
+            else:
+                item.clicked.connect(self.show_login_prompt)
+
+            tools_layout.addWidget(item)
+            self.tool_items.append(item)
+
+        tools_layout.addStretch()
+
+        scroll_area.setWidget(tools_widget)
+        sidebar_layout.addWidget(scroll_area)
+
+        # 底部用户信息
+        self.create_sidebar_footer(sidebar_layout)
+
+        main_layout.addWidget(self.sidebar_container)
+
+        # 默认选中第一个工具（如果已登录）
+        if self.api_service and self.tool_items:
+            self.tool_items[0].set_selected(True)
+
+    def create_sidebar_footer(self, sidebar_layout):
+        """创建侧边栏底部"""
+        footer_widget = QWidget()
+        footer_widget.setObjectName("sidebarFooter")
+        footer_layout = QVBoxLayout(footer_widget)
+        footer_layout.setContentsMargins(20, 15, 20, 15)
+
+        # 用户信息区域
+        if self.api_service:
+            # 已登录
+            user_info_layout = QHBoxLayout()
+            # 用户头像占位
+            avatar_label = QLabel("🦕")
+            avatar_label.setStyleSheet("font-size: 28px;")
+            user_info_layout.addWidget(avatar_label)
+
+            # 用户名和状态
+            user_text_layout = QVBoxLayout()
+            username_label = QLabel(self.username)
+            username_label.setObjectName("sidebarUsername")
+            user_text_layout.addWidget(username_label)
+
+            status_label = QLabel("在线")
+            status_label.setObjectName("sidebarStatus")
+            user_text_layout.addWidget(status_label)
+
+            user_info_layout.addLayout(user_text_layout)
+            user_info_layout.addStretch()
+
+            footer_layout.addLayout(user_info_layout)
+
+            # 操作按钮
+            if self.account_manager and len(self.account_manager.get_all_accounts()) > 1:
+                switch_btn = QPushButton("切换账号")
+                switch_btn.setObjectName("sidebarButton")
+                switch_btn.clicked.connect(self.show_account_management)
+                footer_layout.addWidget(switch_btn)
+        else:
+            # 未登录
+            login_btn = QPushButton("登录账号")
+            login_btn.setObjectName("sidebarLoginButton")
+            login_btn.clicked.connect(self.show_login_dialog)
+            footer_layout.addWidget(login_btn)
+
+        # AICU状态和版本信息 - 放在同一行
+        info_layout = QHBoxLayout()
+        info_layout.setContentsMargins(0, 10, 0, 0)
+
+        # AICU状态
+        aicu_label = QLabel(f"AICU: {'启用' if self.aicu_state else '禁用'}")
+        aicu_label.setObjectName("sidebarAicuStatus")
+        aicu_label.setProperty("enabled", "true" if self.aicu_state else "false")
+        aicu_label.setStyleSheet(f"""
+            color: {'#34d399' if self.aicu_state else '#f87171'};
+            font-size: 12px;
+            font-weight: 500;
+        """)
+        info_layout.addWidget(aicu_label)
+
+        # 分隔符
+        separator_label = QLabel("•")
+        separator_label.setStyleSheet("color: #475569; margin: 0 8px;")
+        info_layout.addWidget(separator_label)
+
+        # 版本信息
+        version_label = QLabel("版本:1.6.19")
+        version_label.setObjectName("sidebarVersionLabel")
+        version_label.setStyleSheet("""
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 500;
+        """)
+        info_layout.addWidget(version_label)
+
+        info_layout.addStretch()
+
+        footer_layout.addLayout(info_layout)
+
+        sidebar_layout.addWidget(footer_widget)
+
+    def create_content_area(self, main_layout):
+        """创建内容区域"""
+        # 内容区域容器
+        content_container = QWidget()
+        content_container.setObjectName("contentContainer")
+
+        content_layout = QVBoxLayout(content_container)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
+
+        # 内容堆栈
+        self.content_stack = QStackedWidget()
+        self.content_stack.setObjectName("contentStack")
+
+        # 欢迎页面
+        self.create_welcome_page()
+
+        content_layout.addWidget(self.content_stack)
+        main_layout.addWidget(content_container)
+
+    def create_welcome_page(self):
+        """创建欢迎页面"""
+        welcome_widget = QWidget()
+        welcome_layout = QVBoxLayout(welcome_widget)
+        welcome_layout.setContentsMargins(40, 40, 40, 40)
+        welcome_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # 大标题
+        welcome_title = QLabel("欢迎使用 Bilibili 工具集")
+        welcome_title.setObjectName("welcomeTitle")
+        welcome_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        welcome_layout.addWidget(welcome_title)
+
+        # 副标题
+        if self.api_service:
+            subtitle = QLabel(f"你好，{self.username}！")
+            subtitle.setObjectName("welcomeSubtitle")
+        else:
+            subtitle = QLabel("请先登录后使用")
+            subtitle.setObjectName("welcomeSubtitleNotLoggedIn")
+
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        welcome_layout.addWidget(subtitle)
+
+        # 提示文字
+        hint = QLabel("请从左侧选择要使用的工具")
+        hint.setObjectName("welcomeHint")
+        hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        welcome_layout.addWidget(hint)
+
+        self.content_stack.addWidget(welcome_widget)
+
+
+    def on_tool_selected(self, index):
+        # 更新选中状态
+        for i, item in enumerate(self.tool_items):
+            item.set_selected(i == index)
+
+        # 触发对应的信号
+        tools = [
+            self.open_comment_tool,
+            self.open_unfollow_tool,
+            self.open_unlike_tool,
+            self.open_comment_stats_tool,
+            self.open_message_tool,
+            self.open_record_tool
+        ]
+
+        if 0 <= index < len(tools):
+            tools[index].emit()
+
+    def show_login_prompt(self):
+        """显示登录提示"""
+        QMessageBox.information(
+            self, "需要登录",
+            "请先登录账号才能使用此工具。\n\n点击侧边栏底部的'登录账号'按钮或使用菜单栏登录。"
+        )
 
     def clear_local_cache(self):
         """清除本地缓存"""
@@ -463,236 +832,11 @@ class ToolSelectionScreen(QMainWindow):
             else:
                 QMessageBox.critical(self, "清除失败", "清除缓存时发生错误")
 
-    def create_header_area(self, main_layout):
-        """创建顶部区域"""
-        header_layout = QVBoxLayout()
-        header_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        # 应用标题
-        app_title = QLabel("Bilibili 工具集")
-        app_font = QFont()
-        app_font.setPointSize(28)
-        app_font.setBold(True)
-        app_title.setFont(app_font)
-        app_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        app_title.setObjectName("appTitle")
-        header_layout.addWidget(app_title)
-
-        # 账号状态区域
-        status_layout = QHBoxLayout()
-        status_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        # 状态图标和文字
-        if self.api_service:
-            status_text = f"🟢 欢迎, {self.username}"
-            status_color = "#27ae60"
-        else:
-            status_text = "🔴 未登录"
-            status_color = "#e74c3c"
-
-        self.welcome_label = QLabel(status_text)
-        welcome_font = QFont()
-        welcome_font.setPointSize(16)
-        self.welcome_label.setFont(welcome_font)
-        self.welcome_label.setObjectName("welcomeLabel")
-        if self.api_service:
-            self.welcome_label.setProperty("status", "logged_in")
-        else:
-            self.welcome_label.setProperty("status", "not_logged_in")
-        status_layout.addWidget(self.welcome_label)
-
-        header_layout.addLayout(status_layout)
-
-        # 登录/账号管理按钮
-        button_layout = QHBoxLayout()
-        button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        if not self.api_service:
-            # 未登录时显示登录按钮
-            login_btn = QPushButton("点击登录")
-            login_btn.clicked.connect(self.show_login_dialog)
-            login_btn.setObjectName("loginButton")
-            button_layout.addWidget(login_btn)
-        else:
-            # 已登录时显示账号管理按钮（如果有多个账号）
-            if self.account_manager and len(self.account_manager.get_all_accounts()) > 1:
-                manage_btn = QPushButton("切换账号")
-                manage_btn.clicked.connect(self.show_account_management)
-                manage_btn.setObjectName("manageButton")
-                button_layout.addWidget(manage_btn)
-
-        header_layout.addLayout(button_layout)
-        main_layout.addLayout(header_layout)
-
-    def create_tools_area(self, main_layout):
-        """创建工具区域"""
-        # 提示文字
-        if self.api_service:
-            hint_text = "请选择你要使用的工具:"
-            hint_color = "#bdc3c7"
-        else:
-            hint_text = "登录后即可使用以下工具:"
-            hint_color = "#e74c3c"
-
-        hint_label = QLabel(hint_text)
-        hint_font = QFont()
-        hint_font.setPointSize(14)
-        hint_label.setFont(hint_font)
-        hint_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        hint_label.setObjectName("hintLabel")
-        if self.api_service:
-            hint_label.setProperty("status", "logged_in")
-        else:
-            hint_label.setProperty("status", "not_logged_in")
-        main_layout.addWidget(hint_label)
-
-        # 工具网格
-        tools_layout = QHBoxLayout()
-        tools_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        tools_layout.setSpacing(40)
-
-        # 工具卡片
-        tools = [
-            {
-                "title": "评论清理工具",
-                "description": "清理你的评论、弹幕和通知\n支持批量删除和搜索过滤\n双击评论可查看完整对话",  # 更新描述
-                "enabled": bool(self.api_service),
-                "callback": self.open_comment_tool.emit
-            },
-            {
-                "title": "批量取关工具",
-                "description": "批量管理你关注的UP主\n支持分组浏览和搜索\n一键取消关注多个UP主",
-                "enabled": bool(self.api_service),
-                "callback": self.open_unfollow_tool.emit
-            },
-            {
-                "title": "数据统计中心",  # 更新标题
-                "description": "查看你的数据统计概览\n评论、弹幕、私信、通知统计\n数据来源和时间分布",  # 更新描述
-                "enabled": bool(self.api_service),
-                "callback": self.open_comment_stats_tool.emit
-            },
-            {
-                "title": "私信管理工具",
-                "description": "管理你的B站私信\n批量删除和搜索过滤\n双击查看对话详情",
-                "enabled": bool(self.api_service),
-                "callback":self.open_message_tool.emit
-            }
-
-        ]
-
-        for tool in tools:
-            card = self.create_clean_tool_card(
-                tool["title"],
-                tool["description"],
-                tool["enabled"],
-                tool["callback"]
-            )
-            tools_layout.addWidget(card)
-
-        main_layout.addLayout(tools_layout)
-
-    def create_clean_tool_card(self, title: str, description: str, enabled: bool, callback):
-        """创建简洁的工具卡片"""
-        card = QFrame()
-        card.setFrameStyle(QFrame.Shape.Box)
-        card.setLineWidth(1)
-        # 根据enabled状态设置不同的objectName
-        if enabled:
-            card.setObjectName("toolCard")
-        else:
-            card.setObjectName("toolCardDisabled")
-
-        if enabled:
-            card.setCursor(Qt.CursorShape.PointingHandCursor)
-            card.mousePressEvent = lambda event: callback() if event.button() == Qt.MouseButton.LeftButton else None
-        else:
-            # 未登录时点击弹出登录提示
-            card.setCursor(Qt.CursorShape.PointingHandCursor)
-            card.mousePressEvent = lambda event: self.show_login_prompt() if event.button() == Qt.MouseButton.LeftButton else None
-
-        layout = QVBoxLayout()
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 20, 20, 20)
-
-        # 图标区域
-        if enabled:
-            icon_label = QLabel("🛠️")
-        else:
-            icon_label = QLabel("🔒")
-
-        icon_label.setStyleSheet("font-size: 48px; margin-bottom: 10px;")
-        icon_label.setMinimumHeight(80)
-        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(icon_label)
-
-        # 标题
-        title_label = QLabel(title)
-        title_font = QFont()
-        title_font.setPointSize(18)
-        title_font.setBold(True)
-        title_label.setFont(title_font)
-        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_label.setWordWrap(True)
-        layout.addWidget(title_label)
-
-        # 描述
-        desc_label = QLabel(description)
-        desc_font = QFont()
-        desc_font.setPointSize(12)
-        desc_label.setFont(desc_font)
-        desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        desc_label.setWordWrap(True)
-        desc_label.setMinimumHeight(80)
-        layout.addWidget(desc_label)
-
-        card.setLayout(layout)
-        card.setFixedSize(320, 280)
-
-
-
-        return card
-
-    def create_footer_area(self, main_layout):
-        """创建底部区域"""
-        footer_layout = QHBoxLayout()
-        footer_layout.setContentsMargins(0, 30, 0, 0)
-
-        # AICU状态
-        aicu_status = QLabel(f"AICU数据源: {'启用' if self.aicu_state else '禁用'}")
-        aicu_status.setObjectName("aicuStatus")
-        aicu_status.setProperty("enabled", "true" if self.aicu_state else "false")
-        footer_layout.addWidget(aicu_status)
-
-        footer_layout.addStretch()
-
-        # 账号信息
-        if self.account_manager and self.account_manager.has_accounts():
-            account_count = len(self.account_manager.accounts)
-            account_info = QLabel(f"已保存 {account_count} 个账号")
-            account_info.setObjectName("accountInfo")
-            footer_layout.addWidget(account_info)
-
-        # 版本信息
-        version_label = QLabel("版本: 1.4.33")
-        version_label.setObjectName("versionLabel")
-        footer_layout.addWidget(version_label)
-
-        main_layout.addLayout(footer_layout)
-
-    def show_login_prompt(self):
-        """显示登录提示"""
-        QMessageBox.information(
-            self, "需要登录",
-            "请先登录账号才能使用此工具。\n\n点击上方的'点击登录'按钮或使用菜单栏登录。"
-        )
-
     def show_login_dialog(self):
         """显示登录对话框"""
         dialog = SimpleLoginDialog(self.aicu_state, self)
         dialog.login_success.connect(self.on_login_success)
         dialog.exec()
-
 
     def show_account_management(self):
         """显示账号管理对话框 """
@@ -986,9 +1130,10 @@ class ToolSelectionScreen(QMainWindow):
     def on_username_received(self, username):
         """收到用户名时更新界面"""
         self.username = username
-        if hasattr(self, 'welcome_label'):
-            self.welcome_label.setText(f"🟢 欢迎, {username}")
         self.statusBar().showMessage(f"已登录: {username}")
+
+        # 更新侧边栏的用户名显示
+        self.refresh_ui()
 
         # 更新账号管理器中的用户名
         if self.account_manager and self.account_manager.current_account:
@@ -1016,10 +1161,43 @@ class ToolSelectionScreen(QMainWindow):
             self.username_thread.wait(1000)
 
         super().closeEvent(event)
+
     def refresh_ui(self):
-        """刷新界面"""
+        # 保存当前的工具选中状态
+        current_selected = -1
+        for i, item in enumerate(self.tool_items):
+            if item.selected:
+                current_selected = i
+                break
+
+        # 正确清理旧的widget
+        # 1. 断开信号连接并删除工具项
+        for item in self.tool_items:
+            try:
+                item.clicked.disconnect()  # 断开所有连接
+            except:
+                pass
+            item.deleteLater()  # 标记删除
+        self.tool_items.clear()
+
+        # 2. 清理菜单栏
         self.menuBar().clear()
+
+        # 3. 删除主widget（这会级联删除所有子widget）
+        old_central = self.centralWidget()
+        if old_central:
+            old_central.deleteLater()
+
+        # 重新应用样式表
+        from ..style import get_stylesheet
+        self.setStyleSheet(get_stylesheet())
+
+        # 重新初始化UI
         self.init_ui()
+
+        # 恢复选中状态
+        if current_selected >= 0 and current_selected < len(self.tool_items):
+            self.tool_items[current_selected].set_selected(True)
 
     def toggle_aicu_state(self, checked: bool):
         """切换AICU状态"""

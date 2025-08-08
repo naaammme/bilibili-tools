@@ -38,10 +38,7 @@ class BilibiliToolsCollection:
 
         self.app.setStyleSheet(get_stylesheet())
 
-        # 导入;使用带账号管理的工具选择页面,
         from src.screens.tool_selection_screen import ToolSelectionScreen
-
-        # 不提供初始的api_service，让账号管理器自动加载
         self.main_window = ToolSelectionScreen(None, True)
         self.main_window.resize(900, 600)
         self.main_window.setWindowTitle("Bilibili小工具")
@@ -51,6 +48,8 @@ class BilibiliToolsCollection:
         self.main_window.open_unfollow_tool.connect(self.open_unfollow_tool)
         self.main_window.open_comment_stats_tool.connect(self.open_comment_stats_tool)
         self.main_window.open_message_tool.connect(self.open_message_tool)
+        self.main_window.open_record_tool.connect(self.open_record_tool)
+        self.main_window.open_unlike_tool.connect(self.open_unlike_tool)
 
         # 子窗口引用
         self.comment_clean_window = None
@@ -58,7 +57,8 @@ class BilibiliToolsCollection:
         self.comment_stats_window = None
         self.comment_detail_window = None
         self.message_manager_window = None
-
+        self.record_window = None
+        self.unlike_window = None
         logger.info("应用初始化完成 - 使用账号管理模式")
 
     def open_comment_tool(self):
@@ -81,7 +81,6 @@ class BilibiliToolsCollection:
                 self.comment_clean_window.activateWindow()
                 return
 
-            # 导入,创建评论清理窗口
             from src.screens.Comment_Clean_Screen import CommentCleanScreen
             self.comment_clean_window = CommentCleanScreen(
                 self.main_window.api_service,
@@ -97,7 +96,7 @@ class BilibiliToolsCollection:
 
             # 设置窗口
             self.comment_clean_window.setWindowTitle("Bilibili 评论清理工具")
-            self.comment_clean_window.resize(1200, 800)
+            self.comment_clean_window.resize(1200, 1000)
             self.comment_clean_window.show()
 
             logger.info("评论清理工具已打开")
@@ -363,6 +362,135 @@ class BilibiliToolsCollection:
             self.comment_clean_window = None
             logger.info("评论清理工具已关闭")
 
+
+    def open_record_tool(self):
+        """打开评论弹幕记录工具"""
+        try:
+            # 检查窗口是否已存在
+            if self.record_window and not self.record_window.isHidden():
+                self.record_window.show()
+                self.record_window.raise_()
+                self.record_window.activateWindow()
+                return
+
+            # 创建记录工具窗口
+            from src.screens.record_comdanmus_screen import RecordCommDanmusScreen
+            self.record_window = RecordCommDanmusScreen(self.main_window.api_service)
+
+            # 连接信号
+            self.record_window.back_to_tools.connect(self.close_record_tool)
+            self.record_window.window_closed.connect(self.on_record_window_closed)
+
+            # 设置窗口
+            self.record_window.setWindowTitle("Bilibili 评论弹幕记录工具")
+            self.record_window.resize(1400, 900)
+            self.record_window.show()
+
+            logger.info("评论弹幕记录工具已打开")
+
+        except Exception as e:
+            logger.error(f"打开记录工具失败: {e}")
+            QMessageBox.critical(self.main_window, "错误", f"无法打开记录工具: {e}")
+
+    def close_record_tool(self):
+        """关闭记录工具"""
+        if self.record_window:
+            self.record_window.close()
+            self.record_window = None
+            logger.info("记录工具已关闭")
+
+    def on_record_window_closed(self):
+        """处理记录工具窗口关闭事件"""
+        if self.record_window:
+            self.record_window = None
+            logger.info("记录工具窗口已关闭并清理")
+
+    def open_unlike_tool(self):
+        """打开批量取消点赞工具"""
+        try:
+            # 检查登录状态
+            if not self.main_window.api_service:
+                QMessageBox.warning(
+                    self.main_window,
+                    "未登录",
+                    "请先登录账号才能使用批量取消点赞工具。\n\n"
+                    "点击界面上的登录按钮或使用菜单栏登录。"
+                )
+                return
+
+            # 检查窗口是否已存在
+            if self.unlike_window and not self.unlike_window.isHidden():
+                self.unlike_window.show()
+                self.unlike_window.raise_()
+                self.unlike_window.activateWindow()
+                return
+
+            # 导入,创建批量取消点赞窗口
+            from src.screens.unlike_screen import UnlikeScreen
+            self.unlike_window = UnlikeScreen(self.main_window.api_service)
+
+            # 连接信号
+            self.unlike_window.back_to_tools.connect(self.close_unlike_tool)
+            # 连接窗口关闭信号
+            self.unlike_window.window_closed.connect(self.on_unlike_window_closed)
+
+            # 设置窗口
+            self.unlike_window.setWindowTitle("Bilibili 批量取消点赞工具")
+            self.unlike_window.resize(1200, 900)
+            self.unlike_window.show()
+
+            logger.info("批量取消点赞工具已打开")
+
+        except Exception as e:
+            logger.error(f"打开批量取消点赞工具失败: {e}")
+            QMessageBox.critical(self.main_window, "错误", f"无法打开批量取消点赞工具: {e}")
+
+    def close_unlike_tool(self):
+        """关闭批量取消点赞工具"""
+        if self.unlike_window:
+            logger.info("正在关闭批量取消点赞工具...")
+
+            # 先断开信号连接
+            try:
+                self.unlike_window.back_to_tools.disconnect()
+                self.unlike_window.window_closed.disconnect()
+            except:
+                pass  # 忽略断开连接时的错误
+
+            # 关闭窗口
+            self.unlike_window.close()
+
+            # 等待窗口完全关闭
+            QApplication.processEvents()
+
+            # 确保窗口被删除
+            self.unlike_window.deleteLater()
+            self.unlike_window = None
+
+            logger.info("批量取消点赞工具已关闭并清理")
+
+    def on_unlike_window_closed(self):
+        """处理批量取消点赞窗口关闭事件"""
+        logger.info("收到批量取消点赞窗口关闭信号")
+
+        if self.unlike_window:
+            # 断开信号连接
+            try:
+                self.unlike_window.back_to_tools.disconnect()
+                self.unlike_window.window_closed.disconnect()
+            except:
+                pass
+
+            # 确保窗口被删除
+            self.unlike_window.deleteLater()
+            self.unlike_window = None
+
+            # 强制垃圾回收
+            import gc
+            gc.collect()
+
+            logger.info("批量取消点赞工具窗口已关闭并清理完成")
+
     def run(self):
         try:
             self.main_window.show()
@@ -405,6 +533,9 @@ class BilibiliToolsCollection:
             if self.unfollow_window:
                 self.unfollow_window.close()
 
+            if self.unlike_window:
+                self.unlike_window.close()
+
             if self.comment_stats_window:
                 self.comment_stats_window.close()
 
@@ -413,6 +544,9 @@ class BilibiliToolsCollection:
 
             if self.message_manager_window:
                 self.message_manager_window.close()
+
+            if self.record_window:
+                self.record_window.close()
             # 最后关闭主窗口
             if self.main_window:
                 # 如果主窗口有用户名线程，等待它结束

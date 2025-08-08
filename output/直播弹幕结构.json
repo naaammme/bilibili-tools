@@ -1,0 +1,58 @@
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "roominfo",: {
+                    "upname": "狐瑜瑜oO",
+                    "upuid": "3546900967983851",
+                    "roomid": "",
+                    "roomname": "【御姐新v】瑜瑜满月啦"
+                },
+                "danmu": [
+                    {
+                        "uname": "倪泥拟",
+                        "text": "1",
+                        "ts": 1751546490
+                    }
+                ]
+            },
+            {
+                "roominfo": {
+                    "upname": "棉花大哥哥",
+                    "upuid": "1871001",
+                    "roomid": "34348",
+                    "roomname": "崩铁3.4主线！"
+                },
+                "danmu": [
+                    {
+                        "uname": "倪泥拟",
+                        "text": ",,,",
+                        "ts": 1751434182
+                    }
+                ]
+            },
+            {
+                "roominfo": {
+                    "upname": "Lucky甜糖",
+                    "upuid": "3546566159763731",
+                    "roomid": "32638315",
+                    "roomname": "电子小猫不能咬人~"
+                },
+                "danmu": [
+                    {
+                        "uname": "倪泥拟",
+                        "text": "哈哈",
+                        "ts": 1751434116
+                    }
+                ]
+            }
+        ],
+        "cursor": {
+            "is_end": false,
+            "all_count": 3
+        }
+    },
+    "message": "",
+    "ttl": 1
+}

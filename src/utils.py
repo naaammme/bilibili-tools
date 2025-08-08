@@ -1,5 +1,6 @@
 
 import logging
+import random
 from typing import Optional
 from .api.api_service import ApiService
 
@@ -46,3 +47,30 @@ def fuzzy_search(search_query: str, text: str) -> bool:
 
     # 所有字符都按顺序找到了
     return True
+
+
+class ClickTracker:
+    def __init__(self, target_clicks: int):
+        # 将传入的整数作为随机范围的上限，并存储起来
+        # _max_target 是一个内部变量，对类的使用者不可见
+        self._max_target = target_clicks
+        self.current_clicks = 0
+
+        # self.target_clicks 将用于存储当前周期的随机目标
+        self.target_clicks = 0
+        self.reset()
+
+    def click(self) -> bool:
+        self.current_clicks += 1
+        if self.current_clicks >= self.target_clicks:
+            self.reset()
+            return True
+        return False
+
+    def get_remaining_clicks(self) -> int:
+        return max(0, self.target_clicks - self.current_clicks)
+
+    def reset(self):
+        self.current_clicks = 0
+        # 从 1 到设定的上限之间，生成一个新的随机目标
+        self.target_clicks = random.randint(1, self._max_target)

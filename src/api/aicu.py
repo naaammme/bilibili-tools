@@ -8,7 +8,16 @@ from ..types import Comment, Danmu, AicuCommentRecovery, AicuDanmuRecovery, Requ
 
 logger = logging.getLogger(__name__)
 
+"""
+未来考虑加入aicu备用api
+https://apibackup2.aicu.cc:88/api/v3/search/getreply?uid=452981646&pn=1&ps=1&mode=0
+https://apibackup2.aicu.cc:88/api/v3/search/getvideodm?uid=452981646&pn=1&ps=1&mode=0
 
+https://api.aicu.cc/api/v3/search/getreply?uid=452981646&pn=1&ps=1&mode=0
+https://api.aicu.cc/api/v3/search/getvideodm?uid=452981646&pn=1&ps=1&mode=0
+吼吼吼
+
+"""
 class AicuActivityTracker:
     """AICU专用的活动跟踪器，适应高数据量特点"""
 
@@ -110,45 +119,53 @@ async def fetch_aicu_comments(
     # 创建活动跟踪器
     activity_tracker = AicuActivityTracker("aicu_comments", "正在获取AICU评论", activity_callback or (lambda x: None))
     pbar = None
-    consecutive_errors = 0
-    max_consecutive_errors = 3
 
     try:
         while True:
-            params = {
-                "uid": uid,
-                "pn": current_page,
-                "ps": 100,
-                "mode": 0,
-                "keyword": ""
-            }
+            params = {"uid": uid, "pn": current_page, "ps":500, "mode": 0, "keyword": ""}
 
             try:
-                # 调用包装好的 get_cffi_json 方法，它会在后台运行同步请求
                 data = await api_service.get_cffi_json("https://api.aicu.cc/api/v3/search/getreply", params=params)
-                consecutive_errors = 0  # 成功时重置错误计数
+
 
                 if data.get("code") != 0:
-                    logger.warning(f"aicu api调用错误: {data.get('message', 'Unknown error')}")
+                    logger.warning(f"AICU评论API错误: {data}")
                     break
 
                 if "data" not in data:
-                    logger.warning(f"AICU 格式错误: {data}")
+                    logger.warning(f"AICU响应缺少data字段: {data}")
                     break
 
-                # 在第一次成功获取时初始化进度条
+                #   添加详细的API响应日志
                 if pbar is None:
                     all_count = data["data"].get("cursor", {}).get("all_count", 0)
+                    logger.info(f"AICU API响应详情: all_count={all_count}, cursor={data['data'].get('cursor', {})}")
+
                     if all_count == 0:
-                        logger.info(f"AICU：没有发现这个UID的评论: {uid}")
-                        return current_comment_data, None
-                    logger.info(f"AICU 评论: 共{all_count}  UID: {uid}")
-                    pbar = tqdm(total=all_count, desc="获取aicu评论", initial=len(current_comment_data))
+                        #   检查实际replies数量
+                        actual_replies = len(data["data"].get("replies", []))
+                        logger.warning(f"AICU API矛盾: all_count=0 但实际有 {actual_replies} 条replies,无数据")
+
+                        if actual_replies > 0:
+                            #   即使all_count=0，如果有数据就继续处理
+                            logger.info("忽略all_count=0，继续处理实际数据")
+                            pbar = tqdm(total=actual_replies * 10, desc="获取AICU评论",
+                                        initial=len(current_comment_data))
+                        else:
+                            logger.info(f"AICU确实没有数据: uid={uid}")
+                            return current_comment_data, None
+                    else:
+                        logger.info(f"AICU评论: 共 {all_count} 条数据，开始获取")
+                        pbar = tqdm(total=all_count, desc="获取AICU评论", initial=len(current_comment_data))
 
                 replies = data["data"].get("replies", [])
                 if not replies:
-                    logger.info("AICU 评论未找到.")
+                    logger.info("AICU 找不到更多评论.")
                     break
+
+                #   添加数据解析详细日志
+                processed_count = 0
+                skipped_count = 0
 
                 for item in replies:
                     try:
@@ -156,6 +173,8 @@ async def fetch_aicu_comments(
                         if rpid not in current_comment_data:
                             dyn_data = item.get("dyn", {})
                             if not dyn_data or "oid" not in dyn_data or "type" not in dyn_data:
+                                skipped_count += 1
+                                logger.debug(f"跳过评论 rpid={rpid}: dyn_data={dyn_data}")
                                 continue
 
                             comment = Comment(
@@ -196,38 +215,38 @@ async def fetch_aicu_comments(
 
                 if data["data"].get("cursor", {}).get("is_end", False):
                     logger.info("aicu评论:已经结束")
+                    # 最后一页也要延迟，避免连续调用时触发风控
+                    if current_page == 1:
+                        # 如果只有一页数据，使用较短的延迟
+                        await asyncio.sleep(random.uniform(2, 3))
+                    else:
+                        # 多页数据的最后一页，使用正常延迟
+                        await asyncio.sleep(random.uniform(3, 5))
                     break
 
                 current_page += 1
 
                 # 基础延迟
-                base_delay = random.uniform(3, 5)
+                base_delay = random.uniform(5, 7)
                 jitter = random.gauss(0, 2)
                 delay = max(1, base_delay + jitter)
 
                 # 10%概率触发长暂停（模拟用户去做其他事）
                 if random.random() < 0.1:
-                    delay += random.uniform(10, 20)
+                    delay += random.uniform(5, 10)
 
 
                 # 每获取10页后，强制休息
-                if current_page % 10 == 0:
+                if current_page % 5 == 0:
                     delay += random.uniform(5, 10)
 
 
                 await asyncio.sleep(delay)
 
             except RequestFailedError as e:
-                consecutive_errors += 1
-                logger.warning(f"获取aicu评论失败 {current_page} (attempt {consecutive_errors}): {e}")
-                if consecutive_errors >= max_consecutive_errors:
-                    logger.error("达到AICU获取评论连续错误的最大值。保存进度.")
-                    recovery = AicuCommentRecovery(uid=uid, page=current_page, all_count=all_count)
-                    activity_tracker.finish()
-                    if pbar:
-                        pbar.close()
-                    return current_comment_data, recovery
-                await asyncio.sleep(random.uniform(5, 8)) # 出现错误后等待更长时间
+                logger.error(f"!!!!!!!AICU被风控!!!! {e}")
+                logger.warning("!!!!!本次不显示aicu数据,可能是网络问题,请切换纯净代理节点或连接手机热点网络重试!!!!!")
+                break
 
     finally:
         activity_tracker.finish()
@@ -271,22 +290,21 @@ async def fetch_aicu_danmus(
     # 创建活动跟踪器
     activity_tracker = AicuActivityTracker("aicu_danmus", "正在获取AICU弹幕", activity_callback or (lambda x: None))
     pbar = None
-    consecutive_errors = 0
-    max_consecutive_errors = 3
+
 
     try:
         while True:
             params = {
                 "uid": uid,
                 "pn": current_page,
-                "ps": 100,
+                "ps": 500,
                 "mode": 0,
                 "keyword": ""
             }
 
             try:
                 data = await api_service.get_cffi_json("https://api.aicu.cc/api/v3/search/getvideodm", params=params)
-                consecutive_errors = 0
+
 
                 if data.get("code") != 0:
                     logger.warning(f"AICU弹幕API返回错误: {data.get('message', 'Unknown error')}")
@@ -340,8 +358,14 @@ async def fetch_aicu_danmus(
 
                 if data["data"].get("cursor", {}).get("is_end", False):
                     logger.info("aicu弹幕获取结束.")
+                    # 最后一页也要延迟，避免连续调用时触发风控
+                    if current_page == 1:
+                        # 如果只有一页数据，使用较短的延迟
+                        await asyncio.sleep(random.uniform(2, 3))
+                    else:
+                        # 多页数据的最后一页，使用正常延迟
+                        await asyncio.sleep(random.uniform(3, 5))
                     break
-
                 current_page += 1
 
                 # 基础延迟
@@ -360,16 +384,9 @@ async def fetch_aicu_danmus(
                 await asyncio.sleep(delay)
 
             except RequestFailedError as e:
-                consecutive_errors += 1
-                logger.warning(f"获取aicu弹幕失败,页数: {current_page} (attempt {consecutive_errors}): {e}")
-                if consecutive_errors >= max_consecutive_errors:
-                    logger.error("已达到AICU任务连续错误最大值。保存进度.")
-                    recovery = AicuDanmuRecovery(uid=uid, page=current_page, all_count=all_count)
-                    activity_tracker.finish()
-                    if pbar:
-                        pbar.close()
-                    return current_danmu_data, recovery
-                await asyncio.sleep(random.uniform(5, 8))
+                logger.error(f"!!!!!!!AICU被风控!!!!: {e}")
+                logger.warning("!!!!!本次不显示aicu数据,可能是网络问题,请切换纯净代理节点或连接手机热点网络重试!!!!!!")
+                break  # 直接跳出循环
 
     finally:
         activity_tracker.finish()

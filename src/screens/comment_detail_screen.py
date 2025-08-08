@@ -253,28 +253,42 @@ class CommentDetailScreen(QWidget):
         action_layout = QHBoxLayout()
         action_layout.setContentsMargins(0, 10, 0, 0)
 
-        # 判断数据源
-        if hasattr(self.comment_data, 'source') and self.comment_data.source == 'bilibili':
-            # B站评论，使用uri字段打开视频
-            if hasattr(self.comment_data, 'video_uri') and self.comment_data.video_uri:
-                view_video_btn = QPushButton("🎬 打开B站视频")
-                view_video_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(self.comment_data.video_uri)))
-                view_video_btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #00a1d6;
-                        color: white;
-                        padding: 8px 20px;
-                        border-radius: 6px;
-                        font-weight: bold;
-                    }
-                    QPushButton:hover {
-                        background-color: #0080a6;
-                    }
-                """)
-                action_layout.addWidget(view_video_btn)
+        # 打开B站视频按钮（B站和AICU都显示）
+        view_video_btn = QPushButton("打开B站视频看评论")
+        view_video_btn.clicked.connect(lambda: QDesktopServices.openUrl(
+            QUrl(
+                f"https://www.bilibili.com/video/av{self.oid}/?vd_source=84720652665df200f207840449fc86f5#reply{self.comment_id}")
+        ))
+        if hasattr(self.comment_data, 'source') and self.comment_data.source == 'aicu':
+            view_video_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #ff6b9d;
+                    color: white;
+                    padding: 8px 20px;
+                    border-radius: 6px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #ff5a8c;
+                }
+            """)
+        else:
+             view_video_btn.setStyleSheet("""
+                 QPushButton {
+                     background-color: #00a1d6;
+                     color: white;
+                     padding: 8px 20px;
+                     border-radius: 6px;
+                     font-weight: bold;
+                 }
+                 QPushButton:hover {
+                     background-color: #0080a6;
+                 }
+             """)
+        action_layout.addWidget(view_video_btn)
 
         # 查看评论按钮（AICU和B站都有）
-        view_comment_btn = QPushButton("💬 在B站查看评论")
+        view_comment_btn = QPushButton(" 在B站查看评论")
         view_comment_btn.clicked.connect(self.open_aicu_comment)
 
         # 根据数据源设置不同的样式

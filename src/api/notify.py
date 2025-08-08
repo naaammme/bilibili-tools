@@ -589,11 +589,13 @@ async def fetch(
             c, recovery = await fetch_aicu_comments(api_service, local_progress.aicu_comment_data.copy(), local_progress.aicu_comment_recovery, activity_callback)
             local_progress.aicu_comment_data = c; local_progress.aicu_comment_recovery = recovery
             if recovery is not None: local_progress.aicu_enabled_last_run = True; return None, local_progress
+            local_progress.aicu_enabled_last_run = True
         # 获取AICU弹幕数据
         if local_progress.aicu_danmu_recovery is not None or not local_progress.aicu_danmu_data or not local_progress.aicu_enabled_last_run:
             d, recovery = await fetch_aicu_danmus(api_service, local_progress.aicu_danmu_data.copy(), local_progress.aicu_danmu_recovery, activity_callback)
             local_progress.aicu_danmu_data = d; local_progress.aicu_danmu_recovery = recovery
             if recovery is not None: local_progress.aicu_enabled_last_run = True; return None, local_progress
+            local_progress.aicu_enabled_last_run = True
         #评论合并, 先创建AICU数据的副本，然后用Bilibili数据覆盖
         temp_comment = local_progress.aicu_comment_data.copy()
         temp_comment.update(combined_comment)
@@ -964,8 +966,9 @@ async def fetch_aicu_comments_incremental(
                         new_items_count += 1
 
                 except Exception as e:
-                    logger.debug(f"处理AICU评论失败: {e}")
-                    continue
+                    logger.error(f"AICU评论增量API被风控: {e}")
+                    logger.warning("跳过AICU评论增量获取")
+                    break  # 直接跳出循环
 
             # 检查是否到达末尾
             if data["data"].get("cursor", {}).get("is_end", False):
@@ -1058,8 +1061,9 @@ async def fetch_aicu_danmus_incremental(
                         new_items_count += 1
 
                 except Exception as e:
-                    logger.debug(f"处理AICU弹幕失败: {e}")
-                    continue
+                    logger.error(f"AICU弹幕增量API被风控: {e}")
+                    logger.warning("跳过AICU弹幕增量获取")
+                    break
 
             # 检查是否到达末尾
             if data["data"].get("cursor", {}).get("is_end", False):
@@ -1089,7 +1093,6 @@ async def fetch_aicu_danmus_incremental(
 
     logger.info(f"AICU弹幕增量获取完成，新数据: {new_items_count}")
     return danmus
-
 
 # 导出新函数
 __all__.extend(['fetch_incremental_data', 'fetch_incremental_by_type',

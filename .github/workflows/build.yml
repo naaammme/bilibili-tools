@@ -1,0 +1,375 @@
+name: 跨平台构建Bilibili工具
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            arch: x64
+            executable_suffix: .exe
+            artifact_name: Bilibili小工具-Windows-x64
+          - os: macos-latest
+            platform: macos
+            arch: x64
+            executable_suffix: ""
+            artifact_name: Bilibili小工具-macOS-x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            executable_suffix: ""
+            artifact_name: Bilibili小工具-Linux-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 设置Python环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'  # 使用稳定的Python版本
+        cache: 'pip'
+
+    # Linux特殊依赖安装
+    - name: 安装Linux系统依赖
+      if: matrix.platform == 'linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libxcb-xinerama0 \
+          libxcb-cursor0 \
+          libxkbcommon-x11-0 \
+          libxcb-icccm4 \
+          libxcb-image0 \
+          libxcb-keysyms1 \
+          libxcb-randr0 \
+          libxcb-render-util0 \
+          libxcb-shape0 \
+          libgl1-mesa-glx \
+          libegl1-mesa \
+          libxrandr2 \
+          libxss1 \
+          libxcomposite1 \
+          libxdamage1 \
+          libxtst6 \
+          libdrm2 \
+          libxext6 \
+          libxfixes3 \
+          libasound2 \
+          libpulse0
+
+    # macOS特殊处理
+    - name: macOS环境配置
+      if: matrix.platform == 'macos'
+      run: |
+        # 确保使用最新的工具
+        brew update
+        # 可能需要的系统依赖
+        # brew install python-tk
+
+    # Windows特殊处理
+    - name: Windows环境配置
+      if: matrix.platform == 'windows'
+      run: |
+        # Windows通常不需要额外配置
+        echo "Windows环境准备完成"
+
+    - name: 升级pip和安装基础工具
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+
+    - name: 安装PyInstaller
+      run: |
+        pip install pyinstaller
+
+    - name: 安装项目依赖
+      run: |
+        # 首先安装requirements.txt（如果存在）
+        if [ -f requirements.txt ]; then
+          pip install -r requirements.txt
+        fi
+        
+        # 安装核心依赖（根据你的spec文件）
+        pip install PyQt6
+        pip install qasync
+        pip install aiohttp
+        pip install requests
+        pip install curl-cffi
+        pip install tqdm
+        pip install qrcode[pil]
+        pip install Pillow
+      shell: bash
+
+    - name: 验证关键依赖
+      run: |
+        python -c "import PyQt6; print('PyQt6 版本:', PyQt6.QtCore.QT_VERSION_STR)"
+        python -c "import curl_cffi; print('curl_cffi 导入成功')"
+        python -c "import qrcode; print('qrcode 导入成功')"
+        python -c "import PIL; print('PIL 版本:', PIL.__version__)"
+
+    - name: 检查项目结构
+      run: |
+        echo "=== 项目根目录 ==="
+        ls -la
+        echo "=== src目录 ==="
+        ls -la src/ || echo "src目录不存在"
+        echo "=== assets目录 ==="
+        ls -la assets/ || echo "assets目录不存在"
+        echo "=== 检查图标文件 ==="
+        ls -la assets/1.png || echo "图标文件不存在"
+
+    - name: 复制并修复spec文件
+      run: |
+        # 如果原spec文件存在问题，使用修复版本
+        cat > "Bilibili工具-fixed.spec" << 'EOF'
+        # -*- mode: python ; coding: utf-8 -*-
+        
+        import sys
+        
+        block_cipher = None
+        
+        a = Analysis(
+            ['main.py'],
+            pathex=[],
+            binaries=[],
+            datas=[
+                ('assets', 'assets'),
+                ('src', 'src'),
+            ],
+            hiddenimports=[
+                'PyQt6.QtCore',
+                'PyQt6.QtGui',
+                'PyQt6.QtWidgets',
+                'PyQt6.sip',
+                'qasync',
+                'asyncio',
+                'aiohttp',
+                'aiohttp.client',
+                'aiohttp.connector',
+                'sqlite3',
+                'requests',
+                'curl_cffi',
+                'curl_cffi.requests',
+                'json',
+                'pickle',
+                'logging',
+                'tqdm',
+                'qrcode',
+                'PIL',
+                'PIL.Image',
+                'src.api.api_service',
+                'src.api.account_manager',
+                'src.api.aicu',
+                'src.api.comment',
+                'src.api.danmu',
+                'src.api.drissionpage_service',
+                'src.api.notify',
+                'src.api.qr_code',
+                'src.database.manager',
+                'src.database.models',
+                'src.database.sync',
+                'src.database.incremental',
+                'src.screens.tool_selection_screen',
+                'src.screens.Comment_Clean_Screen',
+                'src.screens.message_manager_screen',
+                'src.screens.comment_stats_screen',
+                'src.screens.comment_detail_screen',
+                'src.screens.record_comdanmus_screen',
+                'src.screens.unlike_screen',
+                'src.screens.unfollow_screen',
+                'src.screens.cookie_screen',
+                'src.screens.qrcode_screen',
+                'src.style',
+                'src.types',
+                'src.utils',
+            ],
+            hookspath=[],
+            hooksconfig={},
+            runtime_hooks=[],
+            excludes=[
+                'PyQt5',
+                'tkinter',
+                'matplotlib',
+                'numpy',
+                'pandas',
+                'scipy',
+                'jupyter',
+                'IPython',
+                'notebook',
+            ],
+            win_no_prefer_redirects=False,
+            win_private_assemblies=False,
+            cipher=block_cipher,
+            noarchive=False,
+        )
+        
+        pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+        
+        # 根据平台设置不同的名称和图标
+        if sys.platform.startswith('win'):
+            exe_name = 'Bilibili小工具'
+            icon_file = 'assets/1.png'
+        elif sys.platform == 'darwin':
+            exe_name = 'Bilibili小工具'
+            icon_file = 'assets/1.png'
+        else:  # Linux
+            exe_name = 'Bilibili小工具'
+            icon_file = None
+        
+        exe = EXE(
+            pyz,
+            a.scripts,
+            a.binaries,
+            a.zipfiles,
+            a.datas,
+            [],
+            name=exe_name,
+            debug=False,
+            bootloader_ignore_signals=False,
+            strip=False,
+            upx=True,
+            upx_exclude=[],
+            runtime_tmpdir=None,
+            console=False,
+            disable_windowed_traceback=False,
+            argv_emulation=False,
+            target_arch=None,
+            codesign_identity=None,
+            entitlements_file=None,
+            icon=icon_file,
+        )
+        
+        # macOS应用包
+        if sys.platform == 'darwin':
+            app = BUNDLE(
+                exe,
+                name='Bilibili小工具.app',
+                icon='assets/1.png',
+                bundle_identifier='com.bilibili.tools',
+                info_plist={
+                    'NSHighResolutionCapable': 'True',
+                    'NSRequiresAquaSystemAppearance': 'False',
+                }
+            )
+        EOF
+
+    - name: 使用PyInstaller构建 (Windows)
+      if: matrix.platform == 'windows'
+      run: |
+        pyinstaller "Bilibili工具-fixed.spec" --noconfirm
+        
+        # 重命名输出文件
+        if [ -f "dist/Bilibili小工具.exe" ]; then
+          mv "dist/Bilibili小工具.exe" "dist/Bilibili小工具-Windows-x64.exe"
+        fi
+      shell: bash
+
+    - name: 使用PyInstaller构建 (macOS)
+      if: matrix.platform == 'macos'
+      run: |
+        pyinstaller "Bilibili工具-fixed.spec" --noconfirm
+        
+        # 检查生成的文件
+        ls -la dist/
+        
+        # 如果有.app包，创建DMG
+        if [ -d "dist/Bilibili小工具.app" ]; then
+          # 创建DMG安装包
+          hdiutil create -volname "Bilibili小工具" -srcfolder "dist/Bilibili小工具.app" -ov -format UDZO "dist/Bilibili小工具-macOS-x64.dmg"
+        fi
+        
+        # 如果有可执行文件，重命名
+        if [ -f "dist/Bilibili小工具" ]; then
+          mv "dist/Bilibili小工具" "dist/Bilibili小工具-macOS-x64"
+        fi
+
+    - name: 使用PyInstaller构建 (Linux)
+      if: matrix.platform == 'linux'
+      run: |
+        # Linux下可能需要显示环境
+        export QT_QPA_PLATFORM=offscreen
+        export DISPLAY=:99
+        
+        pyinstaller "Bilibili工具-fixed.spec" --noconfirm
+        
+        # 重命名输出文件
+        if [ -f "dist/Bilibili小工具" ]; then
+          mv "dist/Bilibili小工具" "dist/Bilibili小工具-Linux-x64"
+          chmod +x "dist/Bilibili小工具-Linux-x64"
+        fi
+
+    - name: 检查构建结果
+      run: |
+        echo "=== 构建完成，检查dist目录 ==="
+        ls -la dist/
+        
+        # 检查文件大小
+        for file in dist/*; do
+          if [ -f "$file" ]; then
+            size=$(du -h "$file" | cut -f1)
+            echo "文件: $file, 大小: $size"
+          fi
+        done
+
+    - name: 上传构建产物 (Windows)
+      if: matrix.platform == 'windows'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: |
+          dist/Bilibili小工具-Windows-x64.exe
+        retention-days: 30
+
+    - name: 上传构建产物 (macOS)
+      if: matrix.platform == 'macos'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: |
+          dist/Bilibili小工具-macOS-x64.dmg
+          dist/Bilibili小工具-macOS-x64
+          dist/Bilibili小工具.app/
+        retention-days: 30
+
+    - name: 上传构建产物 (Linux)
+      if: matrix.platform == 'linux'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: |
+          dist/Bilibili小工具-Linux-x64
+        retention-days: 30
+
+  # 创建发布版本（仅在标签推送时）
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: 下载所有构建产物
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: 创建发布
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/**/*
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

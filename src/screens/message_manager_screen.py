@@ -28,42 +28,96 @@ logger = logging.getLogger(__name__)
 #成功了就减少延迟,失败了增加延迟
 class SmartDelay:
     def __init__(self):
-        self.base_delay = 1.0
+        # 基础延迟配置
+        self.base_delays = {
+            'session_list': 0.5,  # 获取会话列表的基础延迟
+            'fetch_messages': 1.0,  # 获取消息的基础延迟
+            'mark_read': 1.5,
+            'delete': 1.5,
+        }
+
         self.failure_count = 0
         self.success_count = 0
         self.last_request_time = 0
+        self.message_count_factor = 1.0
+        self.current_operation = 'fetch_messages'  # 当前操作类型
+
+        # 爆发控制
+        self.request_count = 0
+        self.burst_threshold = 10  # 每10个请求
+        self.burst_delay = 3.0  # 强制延迟3秒
+
+    def set_operation_type(self, operation_type):
+        """设置当前操作类型"""
+        self.current_operation = operation_type
+
+    def set_message_count(self, count):
+        """根据消息数量设置延迟因子"""
+        if count <= 30:
+            self.message_count_factor = 1.0
+        elif count <= 50:
+            self.message_count_factor = 1.2
+        elif count <= 100:
+            self.message_count_factor = 1.5
+        else:
+            # 超过100条，延迟显著增加
+            self.message_count_factor = 2.0 + (count - 100) * 0.01
 
     def wait(self):
+        # 获取当前操作的基础延迟
+        base_delay = self.base_delays.get(self.current_operation, 1.0)
+
         # 计算动态延迟
         if self.failure_count > 0:
-            delay = self.base_delay * (1.5 ** self.failure_count)
+            # 失败时指数增长，最多5倍
+            delay = base_delay * (1.5 ** min(self.failure_count, 5))
         else:
-            # 连续成功可以稍微减少延迟
-            delay = self.base_delay * (0.9 ** min(self.success_count, 3))
+            # 成功时逐步减少，最多减到70%
+            delay = base_delay * max(0.7, 1.0 - (0.1 * min(self.success_count, 3)))
+
+        # 仅对消息获取应用数量因子
+        if self.current_operation == 'fetch_messages':
+            delay *= self.message_count_factor
+
+        # 添加随机性（±20%）
+        delay = random.uniform(delay * 0.8, delay * 1.2)
 
         # 限制延迟范围
-        delay = max(0.5, min(delay, 15))
+        min_delay = 0.3 if self.current_operation == 'session_list' else 0.5
+        max_delay = 15.0 if self.current_operation == 'delete' else 20.0
+        delay = max(min_delay, min(delay, max_delay))
+
+        # 爆发控制
+        self.request_count += 1
+        if self.request_count % self.burst_threshold == 0:
+            delay = max(delay, self.burst_delay)
 
         # 确保与上次请求的间隔
-        time_since_last = time.time() - self.last_request_time
-        if time_since_last < delay:
-            time.sleep(delay - time_since_last)
+        if self.last_request_time > 0:
+            time_since_last = time.time() - self.last_request_time
+            if time_since_last < delay:
+                time.sleep(delay - time_since_last)
+        else:
+            time.sleep(delay)
 
-        # 添加随机性
-        actual_delay = random.uniform(delay * 0.8, delay * 1.2)
-        time.sleep(actual_delay)
         self.last_request_time = time.time()
 
     def on_success(self):
         """请求成功时调用"""
         self.success_count += 1
-        self.failure_count = max(0, self.failure_count - 1)
+        self.failure_count = max(0, self.failure_count - 2)  # 成功时快速恢复
 
     def on_failure(self):
         """请求失败时调用"""
         self.failure_count += 1
         self.success_count = 0
 
+    def reset(self):
+        """重置延迟状态"""
+        self.failure_count = 0
+        self.success_count = 0
+        self.request_count = 0
+        self.last_request_time = 0
 
 class MessageCache:
     """消息缓存系统，支持断点续传"""
@@ -218,6 +272,9 @@ class MessageFetchThread(QThread):
     def _fetch_new_messages(self):
         """获取新消息"""
         try:
+            # 重置延迟状态
+            self.manager.smart_delay.reset()
+            self.manager.smart_delay.set_operation_type('session_list')
             new_messages = []
             page_size = 20
             has_more = True
@@ -274,6 +331,8 @@ class MessageFetchThread(QThread):
                         # 检查是否有新消息
                         last_msg = session.get('last_msg', {})
                         if last_msg.get('msg_seqno', 0) > newest_seqno:
+                            # 切换到获取消息操作类型
+                            self.manager.smart_delay.set_operation_type('fetch_messages')
                             # 获取该会话的新消息
                             session_new_messages = self._fetch_session_new_messages(
                                 talker_id,
@@ -282,6 +341,8 @@ class MessageFetchThread(QThread):
                             )
                             new_messages.extend(session_new_messages)
                             self.manager.smart_delay.wait()
+                            # 切换回会话列表操作类型
+                            self.manager.smart_delay.set_operation_type('session_list')
 
                     current_page_end_ts = sessions[-1]['session_ts']
                     has_more = data['data'].get('has_more', False)
@@ -373,11 +434,14 @@ class MessageFetchThread(QThread):
     def _fetch_all_session_pages(self):
         """获取所有会话分页"""
         session_type = 1
-        page_size = 20
+        page_size = 10
         has_more = True
         current_page_end_ts = self.manager.cache.last_processed_session_end_ts
         total_sessions_fetched_this_run = 0
         new_messages_this_run = []
+        # 设置延迟因子
+        self.manager.smart_delay.set_message_count(self.manager.messages_per_session)
+        self.manager.smart_delay.reset()
 
         session_unread_info = {}
 
@@ -387,6 +451,8 @@ class MessageFetchThread(QThread):
                 break
 
             try:
+                # 设置操作类型为获取会话列表
+                self.manager.smart_delay.set_operation_type('session_list')
                 params = {
                     'session_type': session_type,
                     'group_fold': 1,
@@ -432,6 +498,9 @@ class MessageFetchThread(QThread):
                     if self.should_stop:
                         break
 
+                    # 设置操作类型为获取消息
+                    self.manager.smart_delay.set_operation_type('fetch_messages')
+
                     # 保存会话的未读信息
                     talker_id = session['talker_id']
                     session_unread_info[talker_id] = {
@@ -450,6 +519,7 @@ class MessageFetchThread(QThread):
                 if self.should_stop:
                     break
 
+                self.manager.smart_delay.set_operation_type('session_list')
                 self.manager.smart_delay.on_success()
                 self.manager.smart_delay.wait()
 
@@ -483,10 +553,14 @@ class MessageFetchThread(QThread):
             params = {
                 'talker_id': talker_id,
                 'session_type': 1,
-                'size': 30,
+                'size': self.manager.messages_per_session,
                 'build': 0,
                 'mobi_app': 'web'
             }
+            # 如果设置的数量较大，记录日志
+            if self.manager.messages_per_session > 100:
+                self.log_signal.emit(f"正在获取会话 {talker_id} 的消息（最多 {self.manager.messages_per_session} 条）...")
+
             resp = requests.get(
                 f"{self.manager.api_base}/svr_sync/v1/svr_sync/fetch_session_msgs",
                 params=params,
@@ -569,6 +643,10 @@ class OperationThread(QThread):
         total_to_process = len(talker_ids_with_seqnos)
         processed_count = 0
 
+        # 设置操作类型并重置状态
+        self.manager.smart_delay.set_operation_type('mark_read')
+        self.manager.smart_delay.reset()
+
         for talker_id, ack_seqno in talker_ids_with_seqnos.items():
             if self.should_stop:
                 self.log_signal.emit("标记已读操作被中止。")
@@ -610,6 +688,7 @@ class OperationThread(QThread):
                     self.manager.smart_delay.on_failure()
                 processed_count += 1
                 self.manager.smart_delay.wait()
+
             except Exception as e:
                 self.log_signal.emit(f"标记 UID:{talker_id} 会话已读出错: {e}")
                 self.manager.smart_delay.on_failure()
@@ -719,6 +798,10 @@ class MessageManagerScreen(QWidget):
         self.filtered_messages = []  # 用于搜索过滤
         self.smart_delay = SmartDelay()
 
+        # 添加消息获取配置
+        self.messages_per_session = 30
+        self.min_messages_per_session = 1
+        self.max_messages_per_session = 200
         # 统计数据
         self.stats_data = defaultdict(lambda: {'sent': 0, 'received': 0, 'total': 0})
 
@@ -769,18 +852,7 @@ class MessageManagerScreen(QWidget):
         # 返回按钮
         back_btn = QPushButton("← 返回工具选择")
         back_btn.clicked.connect(self.back_to_tools.emit)
-        back_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #7f8c8d;
-                color: white;
-                padding: 8px 15px;
-                border-radius: 6px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #95a5a6;
-            }
-        """)
+        back_btn.setObjectName("secondaryButton")
         toolbar_layout.addWidget(back_btn)
 
         # 标题
@@ -790,73 +862,115 @@ class MessageManagerScreen(QWidget):
 
         toolbar_layout.addStretch()
 
+        # 设置标签
+        msg_limit_label = QLabel("每个会话获取:")
+        msg_limit_label.setStyleSheet("color: #ecf0f1; font-size: 18px;")
+        toolbar_layout.addWidget(msg_limit_label)
+        # 数量输入框
+        self.msg_limit_input = QLineEdit()
+        self.msg_limit_input.setText(str(self.messages_per_session))
+        self.msg_limit_input.setMaximumWidth(60)
+        self.msg_limit_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #34495e;
+                color: white;
+                border: 1px solid #7f8c8d;
+                padding: 6px;
+                border-radius: 12px;
+                font-size: 12px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #3498db;
+            }
+        """)
+        toolbar_layout.addWidget(self.msg_limit_input)
+
+        # 单位标签
+        msg_unit_label = QLabel("条")
+        msg_unit_label.setStyleSheet("color: #ecf0f1; font-size: 18px;")
+        toolbar_layout.addWidget(msg_unit_label)
+
+        # 应用按钮
+        apply_limit_btn = QPushButton("应用")
+        apply_limit_btn.clicked.connect(self.apply_message_limit)
+        apply_limit_btn.setObjectName("primaryButton")
+        toolbar_layout.addWidget(apply_limit_btn)
+
+        # 说明按钮
+        info_btn = QPushButton("?")
+        info_btn.clicked.connect(self.show_limit_info)
+        info_btn.setMaximumWidth(25)
+        info_btn.setObjectName("infoButton")
+        toolbar_layout.addWidget(info_btn)
+
+
         # 操作按钮
         self.fetch_all_btn = QPushButton("获取全部")
         self.fetch_all_btn.clicked.connect(self.fetch_all_messages)
-        self.fetch_all_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #3498db;
-                color: white;
-                padding: 8px 15px;
-                border-radius: 6px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #2980b9;
-            }
-        """)
+        self.fetch_all_btn.setObjectName("primaryButton")
         toolbar_layout.addWidget(self.fetch_all_btn)
 
         self.fetch_new_btn = QPushButton("获取新消息")
         self.fetch_new_btn.clicked.connect(self.fetch_new_messages)
-        self.fetch_new_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #27ae60;
-                color: white;
-                padding: 8px 15px;
-                border-radius: 6px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #229954;
-            }
-        """)
+        self.fetch_new_btn.setObjectName("primaryButton")
         toolbar_layout.addWidget(self.fetch_new_btn)
 
         self.stop_fetch_btn = QPushButton("停止获取")
         self.stop_fetch_btn.clicked.connect(self.stop_fetch)
         self.stop_fetch_btn.setEnabled(False)
-        self.stop_fetch_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #e74c3c;
-                color: white;
-                padding: 8px 15px;
-                border-radius: 6px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #c0392b;
-            }
-        """)
+        self.stop_fetch_btn.setObjectName("dangerButton")
         toolbar_layout.addWidget(self.stop_fetch_btn)
 
         self.clear_cache_btn = QPushButton("清空缓存")
         self.clear_cache_btn.clicked.connect(self.clear_cache)
-        self.clear_cache_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f39c12;
-                color: white;
-                padding: 8px 15px;
-                border-radius: 6px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #e67e22;
-            }
-        """)
+        self.clear_cache_btn.setObjectName("dangerButton")
         toolbar_layout.addWidget(self.clear_cache_btn)
 
         layout.addLayout(toolbar_layout)
+
+    def apply_message_limit(self):
+        try:
+            value = int(self.msg_limit_input.text())
+            if value < self.min_messages_per_session:
+                value = self.min_messages_per_session
+                self.msg_limit_input.setText(str(value))
+                self.log(f"数量过小，已自动调整为最小值 {self.min_messages_per_session}")
+            elif value > self.max_messages_per_session:
+                value = self.max_messages_per_session
+                self.msg_limit_input.setText(str(value))
+                self.log(f"数量过大，已自动调整为最大值 {self.max_messages_per_session}")
+
+            self.messages_per_session = value
+            self.log(f"已设置每个会话获取消息数量为: {value} 条")
+
+            # 根据数量调整延迟策略
+            if value > 100:
+                self.log("提示: 设置较大数量可能导致获取速度变慢，系统会自动增加延迟以避免风控")
+
+        except ValueError:
+            self.log("请输入有效的数字")
+            self.msg_limit_input.setText(str(self.messages_per_session))
+
+    # 4. 添加说明信息方法
+    def show_limit_info(self):
+        """显示消息限制说明"""
+        info_text = f"""消息获取数量和获取新消息说明：
+
+    1,消息获取数量设置:
+    • 范围: {self.min_messages_per_session} - {self.max_messages_per_session} 条
+    • 作用: 控制每个会话里获取的最大消息数
+    • 一个会话就是你跟一个人的对话窗口
+    • 数量越大，获取时间越长
+    • 这个消息数同时会影响互动排行榜的统计数量
+    • 设置过大可能触发风控限制
+    • 此设置仅影响"获取全部"功能
+    
+    2,获取新消息说明
+    •此功能获取的只是在第一次获取的最新消息时间戳后的新消息,不是停止获取全部后的继续获取,停止获取全部后暂不支持断点延续!!!
+
+"""
+
+        QMessageBox.information(self, "消息获取设置说明", info_text)
 
     def create_main_content(self, layout):
         """创建主要内容区域"""
@@ -965,48 +1079,16 @@ class MessageManagerScreen(QWidget):
         # 批量操作
         mark_read_btn = QPushButton("标记已读")
         mark_read_btn.clicked.connect(self.mark_as_read)
-        mark_read_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #27ae60;
-                color: white;
-                padding: 8px 15px;
-                border-radius: 6px;
-            }
-            QPushButton:hover {
-                background-color: #229954;
-            }
-        """)
         bottom_layout.addWidget(mark_read_btn)
 
         batch_delete_btn = QPushButton("批量删除")
         batch_delete_btn.clicked.connect(self.batch_delete)
-        batch_delete_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #e74c3c;
-                color: white;
-                padding: 8px 15px;
-                border-radius: 6px;
-            }
-            QPushButton:hover {
-                background-color: #c0392b;
-            }
-        """)
         bottom_layout.addWidget(batch_delete_btn)
 
         self.stop_operation_btn = QPushButton("停止操作")
         self.stop_operation_btn.clicked.connect(self.stop_operation)
         self.stop_operation_btn.setEnabled(False)
-        self.stop_operation_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f39c12;
-                color: white;
-                padding: 8px 15px;
-                border-radius: 6px;
-            }
-            QPushButton:hover {
-                background-color: #e67e22;
-            }
-        """)
+        self.stop_operation_btn.setObjectName("dangerButton")
         bottom_layout.addWidget(self.stop_operation_btn)
 
         layout.addWidget(bottom_frame)
