@@ -6,7 +6,7 @@ on:
     tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:  # 手动触发
+  workflow_dispatch:
 
 jobs:
   build:
@@ -39,10 +39,16 @@ jobs:
     - name: 设置Python环境
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'  # 使用稳定的Python版本
+        python-version: '3.12'
         cache: 'pip'
 
-    # Linux特殊依赖安装
+    - name: 设置环境变量
+      run: |
+        echo "PYTHONIOENCODING=utf-8" >> $GITHUB_ENV
+        echo "PYTHONUTF8=1" >> $GITHUB_ENV
+      shell: bash
+
+
     - name: 安装Linux系统依赖
       if: matrix.platform == 'linux'
       run: |
@@ -57,8 +63,8 @@ jobs:
           libxcb-randr0 \
           libxcb-render-util0 \
           libxcb-shape0 \
-          libgl1-mesa-glx \
-          libegl1-mesa \
+          libgl1-mesa-dri \
+          libegl1 \
           libxrandr2 \
           libxss1 \
           libxcomposite1 \
@@ -67,24 +73,28 @@ jobs:
           libdrm2 \
           libxext6 \
           libxfixes3 \
-          libasound2 \
-          libpulse0
+          libasound2t64 \
+          libpulse0 \
+          libglib2.0-0 \
+          libfontconfig1 \
+          libfreetype6 \
+          libx11-6 \
+          libxcb1 \
+          libxi6 \
+          libxrender1
 
-    # macOS特殊处理
     - name: macOS环境配置
       if: matrix.platform == 'macos'
       run: |
-        # 确保使用最新的工具
-        brew update
-        # 可能需要的系统依赖
-        # brew install python-tk
+        brew update || true
+        echo "macOS环境准备完成"
 
-    # Windows特殊处理
     - name: Windows环境配置
       if: matrix.platform == 'windows'
       run: |
-        # Windows通常不需要额外配置
         echo "Windows环境准备完成"
+        chcp 65001
+      shell: cmd
 
     - name: 升级pip和安装基础工具
       run: |
@@ -96,12 +106,11 @@ jobs:
 
     - name: 安装项目依赖
       run: |
-        # 首先安装requirements.txt（如果存在）
         if [ -f requirements.txt ]; then
           pip install -r requirements.txt
         fi
         
-        # 安装核心依赖（根据你的spec文件）
+        # 确保核心依赖正确安装
         pip install PyQt6
         pip install qasync
         pip install aiohttp
@@ -114,10 +123,11 @@ jobs:
 
     - name: 验证关键依赖
       run: |
-        python -c "import PyQt6; print('PyQt6 版本:', PyQt6.QtCore.QT_VERSION_STR)"
-        python -c "import curl_cffi; print('curl_cffi 导入成功')"
-        python -c "import qrcode; print('qrcode 导入成功')"
-        python -c "import PIL; print('PIL 版本:', PIL.__version__)"
+        python -c "from PyQt6 import QtCore; print('PyQt6 Qt version:', QtCore.QT_VERSION_STR)"
+        python -c "import curl_cffi; print('curl_cffi imported successfully')"
+        python -c "import qrcode; print('qrcode imported successfully')"
+        python -c "import PIL; print('PIL version:', PIL.__version__)"
+      shell: bash
 
     - name: 检查项目结构
       run: |
@@ -129,17 +139,36 @@ jobs:
         ls -la assets/ || echo "assets目录不存在"
         echo "=== 检查图标文件 ==="
         ls -la assets/1.png || echo "图标文件不存在"
+      shell: bash
 
-    - name: 复制并修复spec文件
+    - name: 创建跨平台spec文件
       run: |
-        # 如果原spec文件存在问题，使用修复版本
-        cat > "Bilibili工具-fixed.spec" << 'EOF'
+        cat > "cross-platform.spec" << 'EOF'
         # -*- mode: python ; coding: utf-8 -*-
-        
         import sys
-        
+        import os
+
         block_cipher = None
-        
+
+        # 获取当前平台
+        is_windows = sys.platform.startswith('win')
+        is_macos = sys.platform == 'darwin'
+        is_linux = sys.platform.startswith('linux')
+
+        # 设置平台特定的配置
+        if is_windows:
+            exe_name = 'Bilibili小工具'
+            console_mode = False
+            icon_path = 'assets/1.png' if os.path.exists('assets/1.png') else None
+        elif is_macos:
+            exe_name = 'Bilibili小工具'
+            console_mode = False
+            icon_path = 'assets/1.png' if os.path.exists('assets/1.png') else None
+        else:  # Linux
+            exe_name = 'Bilibili小工具'
+            console_mode = False
+            icon_path = None
+
         a = Analysis(
             ['main.py'],
             pathex=[],
@@ -214,20 +243,9 @@ jobs:
             cipher=block_cipher,
             noarchive=False,
         )
-        
+
         pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
-        
-        # 根据平台设置不同的名称和图标
-        if sys.platform.startswith('win'):
-            exe_name = 'Bilibili小工具'
-            icon_file = 'assets/1.png'
-        elif sys.platform == 'darwin':
-            exe_name = 'Bilibili小工具'
-            icon_file = 'assets/1.png'
-        else:  # Linux
-            exe_name = 'Bilibili小工具'
-            icon_file = None
-        
+
         exe = EXE(
             pyz,
             a.scripts,
@@ -242,21 +260,21 @@ jobs:
             upx=True,
             upx_exclude=[],
             runtime_tmpdir=None,
-            console=False,
+            console=console_mode,
             disable_windowed_traceback=False,
             argv_emulation=False,
             target_arch=None,
             codesign_identity=None,
             entitlements_file=None,
-            icon=icon_file,
+            icon=icon_path,
         )
-        
+
         # macOS应用包
-        if sys.platform == 'darwin':
+        if is_macos:
             app = BUNDLE(
                 exe,
                 name='Bilibili小工具.app',
-                icon='assets/1.png',
+                icon=icon_path,
                 bundle_identifier='com.bilibili.tools',
                 info_plist={
                     'NSHighResolutionCapable': 'True',
@@ -264,95 +282,67 @@ jobs:
                 }
             )
         EOF
-
-    - name: 使用PyInstaller构建 (Windows)
-      if: matrix.platform == 'windows'
-      run: |
-        pyinstaller "Bilibili工具-fixed.spec" --noconfirm
-        
-        # 重命名输出文件
-        if [ -f "dist/Bilibili小工具.exe" ]; then
-          mv "dist/Bilibili小工具.exe" "dist/Bilibili小工具-Windows-x64.exe"
-        fi
       shell: bash
 
-    - name: 使用PyInstaller构建 (macOS)
-      if: matrix.platform == 'macos'
+    - name: 使用PyInstaller构建
       run: |
-        pyinstaller "Bilibili工具-fixed.spec" --noconfirm
+        # 设置环境变量
+        export PYTHONIOENCODING=utf-8
+        export PYTHONUTF8=1
         
-        # 检查生成的文件
+        # Linux下设置显示环境
+        if [ "${{ matrix.platform }}" = "linux" ]; then
+          export QT_QPA_PLATFORM=offscreen
+          export DISPLAY=:99
+        fi
+        
+        # 执行构建
+        pyinstaller cross-platform.spec --noconfirm --clean
+        
+        # 检查构建结果
+        echo "构建完成"
         ls -la dist/
-        
-        # 如果有.app包，创建DMG
-        if [ -d "dist/Bilibili小工具.app" ]; then
-          # 创建DMG安装包
-          hdiutil create -volname "Bilibili小工具" -srcfolder "dist/Bilibili小工具.app" -ov -format UDZO "dist/Bilibili小工具-macOS-x64.dmg"
-        fi
-        
-        # 如果有可执行文件，重命名
-        if [ -f "dist/Bilibili小工具" ]; then
-          mv "dist/Bilibili小工具" "dist/Bilibili小工具-macOS-x64"
-        fi
+      shell: bash
 
-    - name: 使用PyInstaller构建 (Linux)
-      if: matrix.platform == 'linux'
+    - name: 重命名构建产物
       run: |
-        # Linux下可能需要显示环境
-        export QT_QPA_PLATFORM=offscreen
-        export DISPLAY=:99
+        cd dist
         
-        pyinstaller "Bilibili工具-fixed.spec" --noconfirm
-        
-        # 重命名输出文件
-        if [ -f "dist/Bilibili小工具" ]; then
-          mv "dist/Bilibili小工具" "dist/Bilibili小工具-Linux-x64"
-          chmod +x "dist/Bilibili小工具-Linux-x64"
-        fi
-
-    - name: 检查构建结果
-      run: |
-        echo "=== 构建完成，检查dist目录 ==="
-        ls -la dist/
-        
-        # 检查文件大小
-        for file in dist/*; do
-          if [ -f "$file" ]; then
-            size=$(du -h "$file" | cut -f1)
-            echo "文件: $file, 大小: $size"
+        if [ "${{ matrix.platform }}" = "windows" ]; then
+          if [ -f "Bilibili小工具.exe" ]; then
+            mv "Bilibili小工具.exe" "Bilibili小工具-Windows-x64.exe"
           fi
-        done
+        elif [ "${{ matrix.platform }}" = "macos" ]; then
+          # 为macOS创建DMG
+          if [ -d "Bilibili小工具.app" ]; then
+            hdiutil create -volname "Bilibili小工具" -srcfolder "Bilibili小工具.app" -ov -format UDZO "Bilibili小工具-macOS-x64.dmg"
+          fi
+          if [ -f "Bilibili小工具" ]; then
+            mv "Bilibili小工具" "Bilibili小工具-macOS-x64"
+          fi
+        else  # Linux
+          if [ -f "Bilibili小工具" ]; then
+            mv "Bilibili小工具" "Bilibili小工具-Linux-x64"
+            chmod +x "Bilibili小工具-Linux-x64"
+          fi
+        fi
+        
+        echo "=== 重命名后的文件 ==="
+        ls -la
+      shell: bash
 
-    - name: 上传构建产物 (Windows)
-      if: matrix.platform == 'windows'
+    - name: 上传构建产物
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}
         path: |
           dist/Bilibili小工具-Windows-x64.exe
-        retention-days: 30
-
-    - name: 上传构建产物 (macOS)
-      if: matrix.platform == 'macos'
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.artifact_name }}
-        path: |
-          dist/Bilibili小工具-macOS-x64.dmg
           dist/Bilibili小工具-macOS-x64
+          dist/Bilibili小工具-macOS-x64.dmg
           dist/Bilibili小工具.app/
-        retention-days: 30
-
-    - name: 上传构建产物 (Linux)
-      if: matrix.platform == 'linux'
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.artifact_name }}
-        path: |
           dist/Bilibili小工具-Linux-x64
         retention-days: 30
 
-  # 创建发布版本（仅在标签推送时）
   release:
     if: startsWith(github.ref, 'refs/tags/')
     needs: build
@@ -366,8 +356,7 @@ jobs:
     - name: 创建发布
       uses: softprops/action-gh-release@v1
       with:
-        files: |
-          artifacts/**/*
+        files: artifacts/**/*
         draft: false
         prerelease: false
         generate_release_notes: true
