@@ -13,7 +13,7 @@
 - 双击查看评论详情对话
 
  **批量取关工具**
--  一键批量取消关注
+- 一键批量取消关注
 - 搜索和过滤功能
 
 **评论弹幕记录**
@@ -43,7 +43,7 @@
 
 ## 📋使用说明
 **方式一**:
-- 从 [Releases 页面](link/to/releases) 下载可执行文件
+- 从 [Releases 页面](https://github.com/naaammme/bilibili-tools/releases) 下载可执行文件
 - 运行程序，选择扫码或Cookie登录
 
 **方式二**:
