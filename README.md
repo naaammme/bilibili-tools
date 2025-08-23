@@ -68,7 +68,7 @@ python main.py
 
 ## 🦕 开发中的
 - 历史用户名查询功能
-- 其他功能随缘更新
+- 视频弹幕发送者查询
 ## 🙏  致谢
 
 本项目部分功能的实现思路参考了[Initsnow/bilibili-comment-cleaning](https://github.com/Initsnow/bilibili-comment-cleaning) 和[sw1128/Bilinili_UnFolow](https://github.com/sw1128/Bilibili_UnFollow.git)
